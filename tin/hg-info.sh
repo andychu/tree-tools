@@ -5,7 +5,7 @@
 #
 # Stuff that goes in the archive
 
-tin_info() {
+hg_info() {
   echo 'BUILD DATE'
   date
   echo
@@ -30,3 +30,5 @@ tin_info() {
   hg status --exclude 'glob:**.pyc'
   echo
 }
+
+hg_info "$@"
