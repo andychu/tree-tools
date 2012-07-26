@@ -10,7 +10,9 @@ _die() {
   exit 2
 }
 
-TIN_BASE_DIR=${TIN_BASE_DIR:-.}
+# When running INSIDE a tin file (bootstrapped), TIN_EXTRACT_DIR will be set.
+# In normal mode, just use the current dir.
+TIN_BASE_DIR=${TIN_EXTRACT_DIR:-.}
 
 filter-stdlib-modules() {
   readonly STDLIB_DIR=/usr/lib/python
@@ -38,6 +40,14 @@ build-normal() {
   py-imports "$main_module" \
     | filter-stdlib-modules \
     | create
+}
+
+build-python() {
+  local main_module=$1
+  test -n "$main_module" || _die "No main module given"
+  py-imports "$main_module" \
+    | filter-stdlib-modules \
+    | create --set-pythonpath
 }
 
 "$@"

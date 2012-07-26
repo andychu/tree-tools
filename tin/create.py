@@ -64,6 +64,7 @@ _SHELL_PRELUDE = """\
 
 main_module='_MAIN_MODULE_'
 checksum='_CHECKSUM_'
+set_pythonpath='_SET_PYTHONPATH_'
 
 log() {
   if test -n "$TIN_VERBOSE"; then
@@ -92,8 +93,10 @@ main() {
   # that executable is spawning Python subprocesses, we don't want them to use
   # this PYTHONPATH.  So if it does this, it should set PYTHONPATH to
   # TIN_OLD_PYTHONPATH.
-  export TIN_OLD_PYTHONPATH=$PYTHONPATH
-  export PYTHONPATH=$extract_dir
+  if test "$set_pythonpath" = 1; then
+    export TIN_OLD_PYTHONPATH=$PYTHONPATH
+    export PYTHONPATH=$extract_dir
+  fi
 
   # visible through /proc/PID/environ
   export TIN_EXTRACT_DIR=$extract_dir
@@ -148,18 +151,27 @@ def CreateOptionsParser():
   parser = optparse.OptionParser()
 
   parser.add_option(
-      '-p', '--path', dest='path', type='str', default='',
-      help='Path for finding other scripts/plugins')
-  # TODO: Implement this
-  parser.add_option(
-      '-e', '--env', dest='env', type='str', default='',
-      help='Environment variable to set, e.g. NAME=value')
-  parser.add_option(
       '-o', '--output', dest='output', type='str', default='',
       help='Output name.  By default it will be determined from the executable')
+
+  # This should prevent reliance on system libraries?  But allow stdlib.  TODO:
+  # test it out.
   parser.add_option(
-      '-z', '--zip-compression', dest='zip_compression', type='str', default='',
-      help='Zip compression')
+      '--set-pythonpath', dest='set_pythonpath', default=False,
+      action='store_true',
+      help='Whether to set PYTHONPATH in the shell prelude to the extraction '
+           'dir.')
+
+  # TODO: Implement this
+  #parser.add_option(
+  #    '-e', '--env', dest='env', type='str', default='',
+  #    help='Environment variable to set, e.g. NAME=value')
+
+  # TODO: not implemented
+  #parser.add_option(
+  #    '-z', '--zip-compression', dest='zip_compression', type='str', default='',
+  #    help='Zip compression')
+
   # Other options:
   # - set the extract directory base, could be $TMP, $CHROOT_DIR, etc.
   return parser
@@ -232,10 +244,15 @@ def main(argv):
 
   z.close()
 
+  if options.set_pythonpath:
+    set_pythonpath = '1'
+  else:
+    set_pythonpath = '0'
   prelude = _SHELL_PRELUDE.replace(
       '_MAIN_MODULE_', main_module).replace(
       '_CHECKSUM_', checksum).replace(
-      '_EXTRA_FLAGS_', ' '.join(extra_flags))
+      '_EXTRA_FLAGS_', ' '.join(extra_flags)).replace(
+      '_SET_PYTHONPATH_', set_pythonpath)
   WritePrelude(out_filename, prelude)
   log('Wrote %s with extra args %s', out_filename, extra_flags)
   return 0
