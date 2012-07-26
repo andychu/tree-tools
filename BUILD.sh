@@ -1,9 +1,9 @@
 #!/bin/bash
 #
-# do.sh
+# BUILD.sh
 #
 # Usage:
-#   ./do.sh <action>
+#   ./BUILD.sh <action>
 
 readonly CURRENT_VERSION=0.1.2
 
@@ -32,8 +32,10 @@ upload() {
 }
 
 _manifest() {
+  # Generate build-info
+  bin/tin.sh build-info-files
   echo 'x bin/tin.sh bin/tin.sh'
-  find tin -type f
+  find tin -type f -name \*.py -o -name \*.sh
 }
 
 # Build tin.tin
