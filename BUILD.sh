@@ -5,7 +5,7 @@
 # Usage:
 #   ./do.sh <action>
 
-readonly CURRENT_VERSION=0.1
+readonly CURRENT_VERSION=0.1.1
 
 release() {
   local out=tin-$CURRENT_VERSION.zip
