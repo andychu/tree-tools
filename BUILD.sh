@@ -5,14 +5,15 @@
 # Usage:
 #   ./do.sh <action>
 
-readonly CURRENT_VERSION=0.1.1
+readonly CURRENT_VERSION=0.1.2
+
+# This has a version-numbered filename.  The archive inside it doesn't.
 
 release() {
+  build
   local out=tin-$CURRENT_VERSION.zip
   rm $out
-  # Don't include this do.sh script!
-  zip $out \
-    bin/*.py bin/*.sh BUILD.sh PROVIDES.sh
+  zip $out tin.tin
   unzip -l $out
 }
 
@@ -30,11 +31,14 @@ upload() {
       tin-$CURRENT_VERSION.zip
 }
 
+_manifest() {
+  echo 'x bin/tin.sh bin/tin.sh'
+  find tin -type f
+}
+
 # Build tin.tin
 build() {
-  ( echo 'x bin/tin.sh bin/tin.sh';
-    find tin -type f ) \
-  | bin/tin.sh create
+  _manifest | bin/tin.sh create
 }
 
 "$@"
