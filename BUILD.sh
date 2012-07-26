@@ -43,4 +43,13 @@ build() {
   _manifest | bin/tin.sh create
 }
 
+# Copy to a bunch of repos
+deploy() {
+  set -o errexit
+  cp --verbose tin.tin ../polyweb/_tmp/deps
+  cp --verbose tin.tin ../tnet/_tmp/deps
+  cp --verbose tin.tin ../xmap/_tmp/deps
+  cp --verbose tin.tin ../fly/_tmp/deps
+}
+
 "$@"
