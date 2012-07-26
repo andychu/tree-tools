@@ -32,7 +32,9 @@ upload() {
 
 # Build tin.tin
 build() {
-  echo
+  ( echo 'x bin/tin.sh bin/tin.sh';
+    find tin -type f ) \
+  | bin/tin.sh create
 }
 
 "$@"

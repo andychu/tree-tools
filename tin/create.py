@@ -169,6 +169,13 @@ DATA_FILE = 0
 EXECUTABLE_FILE = 1
 
 def ParseLines(lines):
+  """
+  Input file format:
+
+  3 tokens: x filename, archive name
+  2 tokens: filename, archive name
+  1 token : filename and archive name
+  """
   for line in lines:
     line = line.strip()
     parts = line.split(None, 2)

@@ -10,6 +10,8 @@ _die() {
   exit 2
 }
 
+TIN_BASE_DIR=${TIN_BASE_DIR:-.}
+
 filter-stdlib-modules() {
   readonly STDLIB_DIR=/usr/lib/python
   grep -v $STDLIB_DIR
@@ -18,15 +20,15 @@ filter-stdlib-modules() {
 # define 3 binaries in the bin/ dir
 
 py-imports() {
-  $TIN_BASE_DIR/bin/py_imports.py "$@"
+  $TIN_BASE_DIR/tin/py_imports.py "$@"
 }
 
 create() {
-  $TIN_BASE_DIR/bin/create.py "$@"
+  $TIN_BASE_DIR/tin/create.py "$@"
 }
 
 hg-info() {
-  $TIN_BASE_DIR/bin/hg-info.sh "$@"
+  $TIN_BASE_DIR/tin/hg-info.sh "$@"
 }
 
 # Common build.  You can add your own data with a custom pipeline.
