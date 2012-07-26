@@ -30,4 +30,9 @@ upload() {
       tin-$CURRENT_VERSION.zip
 }
 
+# Build tin.tin
+build() {
+  echo
+}
+
 "$@"
