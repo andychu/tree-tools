@@ -72,6 +72,11 @@ log() {
   fi
 }
 
+die() {
+  echo 1>&2 "$@"
+  exit 6  # exit code 1 is saved for the program
+}
+
 main() {
   log argv: "$@"
   local tmp=${TMP:-/tmp}
@@ -84,6 +89,7 @@ main() {
   else
     # This exits 1 because 'unzip' doesn't like leading bytes
     log "Unzipping to $extract_dir"
+    which unzip >/dev/null || die "Please install 'unzip' to run .tin files."
     unzip -qq -d "$extract_dir" $0
     # TODO: test for the last file, which should be the manifest, here;
     # otherwise cleanup
