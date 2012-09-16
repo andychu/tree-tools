@@ -57,18 +57,20 @@ py-imports-and-files() {
 # Common build.  You can add your own data with a custom pipeline.
 build-normal() {
   local main_module=$1
+  shift
   test -n "$main_module" || _die "No main module given"
   py-imports-and-files "$main_module" \
     | filter-stdlib-modules \
-    | create
+    | create "$@"
 }
 
 build-python() {
   local main_module=$1
+  shift
   test -n "$main_module" || _die "No main module given"
   py-imports-and-files "$main_module" \
     | filter-stdlib-modules \
-    | create --set-pythonpath
+    | create --set-pythonpath "$@"
 }
 
 "$@"
