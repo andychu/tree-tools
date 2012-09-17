@@ -92,7 +92,7 @@ def CreateOptionsParser():
   # Not sure about this one
   parser.add_option(
       '--no-mark', dest='mark', action='store_false', default=True,
-      help='Mark the main module with an x, for input to create.py.')
+      help="Don't mark the main module with an x, for input to create.py.")
 
   return parser
 
