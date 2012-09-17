@@ -18,6 +18,7 @@ __author__ = 'Andy Chu'
 
 
 import os
+import optparse
 import sys
 
 
@@ -85,9 +86,21 @@ def ModuleToRelativePath(modules, main_module):
       yield 'f', filename, filename
 
 
+def CreateOptionsParser():
+  parser = optparse.OptionParser()
+
+  # Not sure about this one
+  parser.add_option(
+      '--no-mark', dest='mark', action='store_false', default=True,
+      help='Mark the main module with an x, for input to create.py.')
+
+  return parser
+
+
 def main(argv):
   """Returns an exit code."""
 
+  (opts, argv) = CreateOptionsParser().parse_args(argv)
   if not argv:
     raise Error('No modules specified.')
 
@@ -103,11 +116,15 @@ def main(argv):
   for file_type, input_path, archive_path in out:
     if input_path.startswith(stdlib_dir):
       continue
-    if file_type == 'x':
-      prefix = 'x'
+    # create.py wants the 'x'.  TODO: Is this necessary?
+    if opts.mark:
+      if file_type == 'x':
+        prefix = 'x'
+      else:
+        prefix = ' '
+      print '%s %s %s' % (prefix, input_path, archive_path)
     else:
-      prefix = ' '
-    print '%s %s %s' % (prefix, input_path, archive_path)
+      print '%s %s' % (input_path, archive_path)
 
 
 if __name__ == '__main__':
