@@ -60,7 +60,6 @@ build-normal() {
   shift
   test -n "$main_module" || _die "No main module given"
   py-imports-and-files "$main_module" \
-    | filter-stdlib-modules \
     | create "$@"
 }
 
@@ -69,7 +68,6 @@ build-python() {
   shift
   test -n "$main_module" || _die "No main module given"
   py-imports-and-files "$main_module" \
-    | filter-stdlib-modules \
     | create --set-pythonpath "$@"
 }
 

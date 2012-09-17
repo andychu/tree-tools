@@ -31,14 +31,12 @@ def log(msg, *args):
   print >>sys.stderr, '\t', msg
 
 
-def ImportModules(modules):
+def ImportModules(modules, old_modules):
   """Yields (module name, absolute path) pairs."""
-  old_modules = dict(sys.modules)  # Make a copy
-  log('Before importing: %d modules', len(old_modules))
 
   main_module = None
   for i, module_name in enumerate(modules):
-    log('- Module to import: %s', module_name)
+    log('Module to import: %s', module_name)
     __import__(module_name)
 
   new_modules = sys.modules
@@ -66,7 +64,7 @@ def ImportModules(modules):
 
 
 def ModuleToRelativePath(modules, main_module):
-  """Yields (absolute input path, archive path) pairs."""
+  """Yields (type, absolute input path, archive path) pairs."""
   for module, filename in modules:
     if module:
       if module == main_module:
@@ -94,9 +92,17 @@ def main(argv):
     raise Error('No modules specified.')
 
   main_module = argv[0]
-  modules = ImportModules(argv)
+  old_modules = dict(sys.modules)  # Make a copy
+  log('Before importing: %d modules', len(old_modules))
+  os_file = old_modules['os'].__file__
+  stdlib_dir = os.path.dirname(os_file) + '/'
+
+  modules = ImportModules(argv, old_modules)
+
   out = ModuleToRelativePath(modules, main_module)
   for file_type, input_path, archive_path in out:
+    if input_path.startswith(stdlib_dir):
+      continue
     if file_type == 'x':
       prefix = 'x'
     else:
