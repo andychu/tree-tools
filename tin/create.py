@@ -261,7 +261,7 @@ def CreateOptionsParser():
 
   # TODO: change default to .tar
   parser.add_option(
-      '--kind', dest='kind', choices=['tar', 'zip'], default='zip',
+      '--kind', dest='kind', choices=['tar', 'zip'], default='tar',
       help='What kind of executable to output.')
 
   # TODO: Implement this
