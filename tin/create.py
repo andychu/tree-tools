@@ -8,22 +8,27 @@ interpeters, etc.
 
 TODO:
 
-- Make everything read-only in order to prevent 2 copies started at the same
-  time from interfering with ong another
-- Check that the *last* file in the archive, TIN/checksum, exists before
-  starting the main program
-- Don't change the working directory at startup; rather provide an environment
-  variable to do it
-- Make sure two different users running on the machine can't create files that
-  interfere with each other.
-
 - Is there any reason to keep the .zip file support?  Maybe at some point you
   will need Windows support, but it's doubtful.  If clients ever run on Windows,
   they'll need some sort of POSIX environment (mingw and whatnot).
 
+- Make everything read-only in order to prevent 2 copies started at the same
+  time from interfering with ong another
+- Make sure two different users running on the machine can't create files that
+  interfere with each other.  (i.e. one can't read the files created by the
+  other)
+- Check that the *last* file in the archive, TIN/checksum, exists before
+  starting the main program
+- Don't change the working directory at startup; rather provide an environment
+  variable to do it
+
+
 FEATURES
 
 - TIN_VERBOSE=1 shows debug information at runtime
+- TIN_LIST=1 lists the contents of the file
+- TODO: Do you need TIN_CAT to cat a specific file?  LIke the checksum?
+
 - You build default flags into the archive.  Then the user can override them
   appending new values on the command line.
   - I would want --log-root to be the internal one
@@ -31,15 +36,16 @@ FEATURES
 - TIN/checksum is a checksum of each input file
 
 NOTES
-- build info (timestamp, hostname, current directory, etc.) is the responsibility of a separate process.  Put it in TIN/build-info
+
+- build info (timestamp, hostname, current directory, etc.) is the
+  responsibility of a separate process.  Put it in TIN/build-info
 - This script depends on md5sum (could just busybox it)
-- The executable .tin archive it builds depends on unzip
-- unzip exits with 1 because of the shell script preamble (which it doesn't
-  recognize)
 
 Reasons to uncompress everything:
-- The only thing that doesn't have to be uncompressed is .py files.  Native
-  executables, .so files, shell scripts, etc. all need to be uncompressed.
+
+- The only thing that doesn't have to be uncompressed is .py files, which are
+  small.  Native executables, .so files, shell scripts, etc. all need to be
+  uncompressed.
 - It's faster and simpler just to uncompress everything.  Requires less
   modification of the underlying code.
 """
@@ -47,6 +53,7 @@ Reasons to uncompress everything:
 __author__ = 'Andy Chu'
 
 
+import cStringIO
 import optparse
 import os
 import md5
@@ -61,13 +68,78 @@ class Error(Exception):
   pass
 
 
+# NOTE: Some boilerplate is duplicated from the .zip prelude below.
 
-# This removes line 1 to the line that contains "exit" from $0, then pipes it to tar.
 _TAR_PRELUDE = """
 #!/bin/sh -e
-sed -e '1,/^exit$/d' "$0" | tar xzf -
-# execute main
-echo 'hi'
+
+main_module='_MAIN_MODULE_'
+checksum='_CHECKSUM_'
+set_pythonpath='_SET_PYTHONPATH_'
+
+log() {
+  if test -n "$TIN_VERBOSE"; then
+    echo 1>&2 '(tin)' "$@"
+  fi
+}
+
+die() {
+  echo 1>&2 "$@"
+  exit 6  # exit code 1 is saved for the program
+}
+
+main() {
+  # Run with TIN_LIST=1 to list it and exit.
+  if test -n "$TIN_LIST"; then
+    sed -e '1,/^exit$/d' "$0" | tar tvzf -
+    exit 0
+  fi
+
+  log argv: "$@"
+  local tmp=${TMP:-/tmp}
+  local extract_dir=$tmp/tin-$checksum
+
+  local extra_flags='_EXTRA_FLAGS_'
+
+  if test -d "$extract_dir"; then
+    log "$extract_dir exists"
+  else
+    log "extracting into $extract_dir"
+    mkdir -p $extract_dir
+    # Filter the payload in this file using sed, then pipe it to tar, which
+    # reads from stdin and writes to $extract_dir.
+    sed -e '1,/^exit$/d' "$0" | tar xzf - -C "$extract_dir"
+
+    # TODO: test for the last file, which should be the manifest, here;
+    # otherwise cleanup
+  fi
+
+  # We need to set PYTHONPATH for the executable (e.g. Poly) to run.  But if
+  # that executable is spawning Python subprocesses, we don't want them to use
+  # this PYTHONPATH.  So if it does this, it should set PYTHONPATH to
+  # TIN_OLD_PYTHONPATH.
+  if test "$set_pythonpath" = 1; then
+    export TIN_OLD_PYTHONPATH=$PYTHONPATH
+    export PYTHONPATH=$extract_dir
+  fi
+
+  # visible through /proc/PID/environ
+  export TIN_EXTRACT_DIR=$extract_dir
+
+  # If the first arg is --tin-info, just display a file an exit
+  if test "$1" = --tin-info; then
+    cat $extract_dir/TIN/build-info
+    exit 0
+  fi
+
+  # $extra_flags is optional, so no quotes
+  log running: $extract_dir/$main_module $extra_flags "$@"
+  exec $extract_dir/$main_module $extra_flags "$@"
+}
+
+main "$@"
+
+# sed command above looks for this line.
 exit
 """
 
@@ -193,11 +265,6 @@ def CreateOptionsParser():
   #    '-e', '--env', dest='env', type='str', default='',
   #    help='Environment variable to set, e.g. NAME=value')
 
-  # TODO: not implemented
-  #parser.add_option(
-  #    '-z', '--zip-compression', dest='zip_compression', type='str', default='',
-  #    help='Zip compression')
-
   # Other options:
   # - set the extract directory base, could be $TMP, $CHROOT_DIR, etc.
   return parser
@@ -298,8 +365,7 @@ def main(argv):
     checksum, checksum_file_contents = Checksum(input_files)
     checksum_name = 'TIN/checksum'
 
-    import StringIO
-    c = StringIO.StringIO(checksum_file_contents)
+    c = cStringIO.StringIO(checksum_file_contents)
 
     tarinfo = tarfile.TarInfo(checksum_name)
     # TODO: user attributes?  do they matter?  We could use a temp file instead,
@@ -314,7 +380,16 @@ def main(argv):
 
     log('(computed checksum) -> %s', checksum_name)
 
-    prelude = _TAR_PRELUDE
+    if options.set_pythonpath:
+      set_pythonpath = '1'
+    else:
+      set_pythonpath = '0'
+    prelude = _TAR_PRELUDE.replace(
+        '_MAIN_MODULE_', main_module).replace(
+        '_CHECKSUM_', checksum).replace(
+        '_EXTRA_FLAGS_', ' '.join(extra_flags)).replace(
+        '_SET_PYTHONPATH_', set_pythonpath)
+
     WritePrelude(out_filename, prelude)
     log('Wrote self-extracting tar %s with extra args %s',
         out_filename, extra_flags)
