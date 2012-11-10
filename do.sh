@@ -9,4 +9,8 @@ all-unit-tests() {
   find . -name \*_test.py | sh -o xtrace -o errexit
 }
 
+list-tar() {
+  tar -ztvf "$@"
+}
+
 "$@"

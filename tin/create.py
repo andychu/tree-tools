@@ -14,6 +14,12 @@ TODO:
   starting the main program
 - Don't change the working directory at startup; rather provide an environment
   variable to do it
+- Make sure two different users running on the machine can't create files that
+  interfere with each other.
+
+- Is there any reason to keep the .zip file support?  Maybe at some point you
+  will need Windows support, but it's doubtful.  If clients ever run on Windows,
+  they'll need some sort of POSIX environment (mingw and whatnot).
 
 FEATURES
 
@@ -36,10 +42,6 @@ Reasons to uncompress everything:
   executables, .so files, shell scripts, etc. all need to be uncompressed.
 - It's faster and simpler just to uncompress everything.  Requires less
   modification of the underlying code.
-
-IDEAS
-- shell script preamble could copy from network file system to local disk,
-  again in $TMP
 """
 
 __author__ = 'Andy Chu'
@@ -50,11 +52,24 @@ import os
 import md5
 import subprocess
 import sys
+import tarfile
+import time
 import zipfile
 
 
 class Error(Exception):
   pass
+
+
+
+# This removes line 1 to the line that contains "exit" from $0, then pipes it to tar.
+_TAR_PRELUDE = """
+#!/bin/sh -e
+sed -e '1,/^exit$/d' "$0" | tar xzf -
+# execute main
+echo 'hi'
+exit
+"""
 
 
 # Port of Python _MAIN above.  If it gets complicated, we could revert ot
@@ -270,8 +285,39 @@ def main(argv):
     log('Wrote %s with extra args %s', out_filename, extra_flags)
 
   else:
-    # tar
-    print entries
+
+    # gzip decompression is used in the prelude.
+    t = tarfile.open(out_filename, mode='w:gz')
+
+    input_files = []
+    for file_type, filename, archive_name in entries:
+      log('%s -> %s', filename, archive_name)
+      t.add(filename, arcname=archive_name)
+      input_files.append(filename)
+
+    checksum, checksum_file_contents = Checksum(input_files)
+    checksum_name = 'TIN/checksum'
+
+    import StringIO
+    c = StringIO.StringIO(checksum_file_contents)
+
+    tarinfo = tarfile.TarInfo(checksum_name)
+    # TODO: user attributes?  do they matter?  We could use a temp file instead,
+    # it might be easier.
+    #
+    # The stamping might need to happen at a later step, for caching.
+    tarinfo.size = len(checksum_file_contents)
+    tarinfo.mtime = time.time()  # if not set, GNU tar gives a warning.
+    t.addfile(tarinfo, c)
+
+    t.close()
+
+    log('(computed checksum) -> %s', checksum_name)
+
+    prelude = _TAR_PRELUDE
+    WritePrelude(out_filename, prelude)
+    log('Wrote self-extracting tar %s with extra args %s',
+        out_filename, extra_flags)
 
   return 0
 
