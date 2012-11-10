@@ -168,6 +168,11 @@ def CreateOptionsParser():
       help='Whether to set PYTHONPATH in the shell prelude to the extraction '
            'dir.')
 
+  # TODO: change default to .tar
+  parser.add_option(
+      '--kind', dest='kind', choices=['tar', 'zip'], default='zip',
+      help='What kind of executable to output.')
+
   # TODO: Implement this
   #parser.add_option(
   #    '-e', '--env', dest='env', type='str', default='',
@@ -236,31 +241,38 @@ def main(argv):
   default_out = os.path.splitext(default_out)[0] + '.tin'
   out_filename = options.output or default_out
 
-  input_files = []
-  z = zipfile.ZipFile(out_filename, 'w', zipfile.ZIP_DEFLATED)
-  for file_type, filename, archive_name in entries:
-    log('%s -> %s', filename, archive_name)
-    z.write(filename, archive_name)
-    input_files.append(filename)
+  if options.kind == 'zip':
+    # Write input files to a .zip
+    input_files = []
+    z = zipfile.ZipFile(out_filename, 'w', zipfile.ZIP_DEFLATED)
+    for file_type, filename, archive_name in entries:
+      log('%s -> %s', filename, archive_name)
+      z.write(filename, archive_name)
+      input_files.append(filename)
 
-  checksum, checksum_file_contents = Checksum(input_files)
-  checksum_name = 'TIN/checksum'
-  z.writestr(checksum_name, checksum_file_contents)
-  log('(computed checksum) -> %s', checksum_name)
+    checksum, checksum_file_contents = Checksum(input_files)
+    checksum_name = 'TIN/checksum'
+    z.writestr(checksum_name, checksum_file_contents)
+    log('(computed checksum) -> %s', checksum_name)
 
-  z.close()
+    z.close()
 
-  if options.set_pythonpath:
-    set_pythonpath = '1'
+    if options.set_pythonpath:
+      set_pythonpath = '1'
+    else:
+      set_pythonpath = '0'
+    prelude = _SHELL_PRELUDE.replace(
+        '_MAIN_MODULE_', main_module).replace(
+        '_CHECKSUM_', checksum).replace(
+        '_EXTRA_FLAGS_', ' '.join(extra_flags)).replace(
+        '_SET_PYTHONPATH_', set_pythonpath)
+    WritePrelude(out_filename, prelude)
+    log('Wrote %s with extra args %s', out_filename, extra_flags)
+
   else:
-    set_pythonpath = '0'
-  prelude = _SHELL_PRELUDE.replace(
-      '_MAIN_MODULE_', main_module).replace(
-      '_CHECKSUM_', checksum).replace(
-      '_EXTRA_FLAGS_', ' '.join(extra_flags)).replace(
-      '_SET_PYTHONPATH_', set_pythonpath)
-  WritePrelude(out_filename, prelude)
-  log('Wrote %s with extra args %s', out_filename, extra_flags)
+    # tar
+    print entries
+
   return 0
 
 

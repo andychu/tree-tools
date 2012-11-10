@@ -43,6 +43,11 @@ build() {
   _manifest | bin/tin.sh create
 }
 
+# Build tar version
+build-tar() {
+  _manifest | bin/tin.sh create --kind=tar
+}
+
 # Copy to a bunch of repos
 deploy() {
   set -o errexit
