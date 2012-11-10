@@ -126,8 +126,12 @@ main() {
   # visible through /proc/PID/environ
   export TIN_EXTRACT_DIR=$extract_dir
 
-  # If the first arg is --tin-info, just display a file an exit
+  # If the first arg is --tin-info, just display a couple files and exit.
   if test "$1" = --tin-info; then
+    echo CONTENTS
+    echo
+    cat $extract_dir/TIN/checksum
+    echo
     cat $extract_dir/TIN/build-info
     exit 0
   fi
