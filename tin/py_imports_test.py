@@ -26,7 +26,7 @@ class PyImportsTest(unittest.TestCase):
               ( 'simplejson', 
                 '/home/andy/dev/simplejson-2.1.5/simplejson/__init__.py')
               ]
-    print list(py_imports.ModuleToRelativePath(pairs))
+    print list(py_imports.ModuleToRelativePath(pairs, 'main'))
 
 
 if __name__ == '__main__':
