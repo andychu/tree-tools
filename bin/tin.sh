@@ -35,8 +35,16 @@
 #
 # Or maybe I should separate tin and py-imports?  They are already kind of
 # separate.
-# create: --set-pythonpath and --out
-# py_imports: --no-mark (this should be deprecated)
+#
+# create: --set-pythonpath and --out.  You should probably have an option for
+#   main here, and then you could get rid of the -x?  And flip the default from
+#   mark to no mark.
+#
+#   $ tin create bin.sample _tmp/out/sample.tin
+#
+# py_imports: --no-mark 
+#   --no-mark is used when just using py-imports for a Python Poly app.  When
+#   you don't need a single file -- just a single tree.
 
 _die() {
   echo 1>&2 "$@"
