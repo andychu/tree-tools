@@ -1,9 +1,42 @@
 #!/bin/bash
 #
-# Shell functions exported by the tin repo.
+# Tin toolkit.
+#
+# Draft of docopt:
 #
 # Usage:
-#   source PROVIDES.sh
+#   tin create
+#   tin py-imports
+#   tin hg-info  # should these be exposed
+#   tin build-normal
+#   tin build-python
+#   tin list <tin>
+#   tin cat <tin> <path>...
+#   tin -h | --help
+#   tin --version
+#
+# Actions:
+#
+#   create      Read paths from stdin and create an archive.
+#   py-imports  Use the Python interpreter to find the transitive closure of
+#               imported modules.  Output is suitable for input to 'create'.
+#               You should set PYTHONPATH.
+#
+#   build-normal  Short cut for create | py-imports
+#   build-python  Like build-normal, but also set PYTHONPATH.
+#
+#   list        List the contents of a .tin file.
+#   cat         Write individual files in a .tin to stdout.
+#
+# TODO:
+#
+#   Need to clean up build-normal vs build-python.  Maybe call it build-py.
+#   Maybe get rid of build-normal?  Am I using it?
+#
+# Or maybe I should separate tin and py-imports?  They are already kind of
+# separate.
+# create: --set-pythonpath and --out
+# py_imports: --no-mark (this should be deprecated)
 
 _die() {
   echo 1>&2 "$@"
