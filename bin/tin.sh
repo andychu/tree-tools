@@ -71,4 +71,19 @@ build-python() {
     | create --set-pythonpath "$@"
 }
 
+# List the contents of a tin file.
+list() {
+  set -o nounset
+  local tin_file=$1
+  TIN_UNTAR=1 ./$tin_file | tar tvzf -
+}
+
+# Print a specific file.
+cat() {
+  set -o nounset
+  local tin_file=$1
+  shift
+  TIN_UNTAR=1 ./$tin_file | tar --to-stdout -xvzf - "$@"
+}
+
 "$@"

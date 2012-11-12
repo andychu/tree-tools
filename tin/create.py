@@ -89,9 +89,10 @@ die() {
 }
 
 main() {
-  # Run with TIN_LIST=1 to list it and exit.
-  if test -n "$TIN_LIST"; then
-    sed -e '1,/^exit$/d' "$0" | tar tvzf -
+  # This is used for listing the contents of a .tin file, for examining
+  # contents, etc.
+  if test -n "$TIN_UNTAR"; then
+    sed -e '1,/^exit$/d' "$0"
     exit 0
   fi
 
