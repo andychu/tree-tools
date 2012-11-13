@@ -52,10 +52,8 @@ _die() {
 }
 
 readonly THIS_DIR=$(cd $(dirname $0) && pwd)
+readonly TIN_BASE_DIR=$(dirname $THIS_DIR)
 
-# When running INSIDE a tin file (bootstrapped), TIN_EXTRACT_DIR will be set.
-# In normal mode, just use this dir's parent (tintool, not tintool/bin)
-TIN_BASE_DIR=${TIN_EXTRACT_DIR:-$(dirname $THIS_DIR)}
 
 filter-stdlib-modules() {
   readonly STDLIB_DIR=/usr/lib/python
