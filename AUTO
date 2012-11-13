@@ -1,0 +1,40 @@
+#!/bin/bash
+
+tin() {
+  ~/hg/tintool/bin/tin.sh "$@"
+}
+
+# TODO:
+# - get docopt, tnet library, tnet tool, tin tool.
+# - to get those, I think they should be deployed as tar balls?  Somewhere out
+fetch() {
+  echo
+}
+
+_manifest() {
+  # Generate build-info
+  bin/tin.sh build-info-files
+  echo 'x bin/tin.sh bin/tin.sh'
+  find tin -type f -name \*.py -o -name \*.sh
+}
+
+build() {
+  # Everything here goes to stderr, so we don't have to redirect.
+  _manifest | bin/tin.sh create
+  # The thing that goes in the deploy tree?
+  echo tin.tin
+}
+
+# not called 'test' 
+run-tests() {
+  # TODO: need a tool that runs all the functions that start with test-* in a
+  # shell script?  Or maybe just ./all?
+  ./tin-test.sh smoke-test
+}
+
+deploy() {
+  # CWD should be build dir?  Then just copy it?
+  scp tin.tin $PBI_DEPLOY_DEST
+}
+
+"$@"

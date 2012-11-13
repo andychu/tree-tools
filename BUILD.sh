@@ -31,18 +31,6 @@ upload() {
       tin-$CURRENT_VERSION.zip
 }
 
-_manifest() {
-  # Generate build-info
-  bin/tin.sh build-info-files
-  echo 'x bin/tin.sh bin/tin.sh'
-  find tin -type f -name \*.py -o -name \*.sh
-}
-
-# Build tin.tin
-build() {
-  _manifest | bin/tin.sh create
-}
-
 # Copy to a bunch of repos
 deploy() {
   set -o errexit

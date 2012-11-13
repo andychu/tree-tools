@@ -1,18 +1,19 @@
 #!/bin/bash
 #
 # tin-test.sh
-# Author: Andy Chu
-#
-# Usage:
-#   FILL IN
 
 smoke-test() {
   set -o errexit
 
   # Build tin.tin, then run it twice.
-  ./BUILD.sh build
+  ./AUTO build
   TIN_VERBOSE=1 ./tin.tin --tin-info
   TIN_VERBOSE=1 ./tin.tin --tin-info
 }
 
-"$@"
+if test $# -eq 0; then
+  # Run all tests here
+  smoke-test
+else
+  "$@"
+fi
