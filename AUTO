@@ -1,12 +1,6 @@
 #!/bin/bash
 
-tin() {
-  ~/hg/tintool/bin/tin.sh "$@"
-}
-
-# TODO:
-# - get docopt, tnet library, tnet tool, tin tool.
-# - to get those, I think they should be deployed as tar balls?  Somewhere out
+# No dependencies.
 fetch() {
   echo
 }
@@ -33,7 +27,7 @@ run-tests() {
 }
 
 deploy() {
-  # CWD should be build dir?  Then just copy it?
+  # TODO: CWD should be build dir?  Is that too complicated?
   scp tin.tin $PBI_DEPLOY_DEST
 }
 
