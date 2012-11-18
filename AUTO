@@ -3,11 +3,6 @@
 # Everything has to succeed
 set -o errexit
 
-# No dependencies.
-fetch() {
-  echo
-}
-
 _manifest() {
   # Generate build-info
   bin/tin.sh build-info-files
