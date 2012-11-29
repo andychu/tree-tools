@@ -70,7 +70,7 @@ class Error(Exception):
 
 # NOTE: Some boilerplate is duplicated from the .zip prelude below.
 
-_TAR_PRELUDE = """
+_TAR_PRELUDE = """\
 #!/bin/sh -e
 
 main_module='_MAIN_MODULE_'
