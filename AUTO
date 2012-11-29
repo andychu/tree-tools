@@ -18,7 +18,7 @@ build() {
 }
 
 # not called 'test' 
-run-tests() {
+test_() {
   # TODO: need a tool that runs all the functions that start with test-* in a
   # shell script?  Or maybe just ./all?
   ./tin-test.sh smoke-test
