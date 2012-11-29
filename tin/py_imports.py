@@ -37,8 +37,13 @@ def ImportModules(modules, old_modules):
 
   main_module = None
   for i, module_name in enumerate(modules):
-    log('Module to import: %s', module_name)
-    __import__(module_name)
+    log('Importing %r', module_name)
+    try:
+      __import__(module_name)
+    except ImportError, e:
+      log('Error importing %r with sys.path %r', module_name, sys.path)
+      # TODO: print better error.
+      raise
 
   new_modules = sys.modules
   log('After importing: %d modules', len(new_modules))

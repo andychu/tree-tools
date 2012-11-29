@@ -7,4 +7,4 @@
 # [hooks]
 # changegroup = hooks/changegroup.sh
 
-/poly/tools/chubot-vcs-hook-pbi
+/poly/tools/chubot-vcs-hook-cdi
