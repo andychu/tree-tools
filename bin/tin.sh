@@ -111,6 +111,10 @@ build-python() {
 }
 
 # List the contents of a tin file.
+# TODO:
+# - fix bug if .tin file isn't executable
+# - what if not even a .tin or .tar file
+# - need shell tests for these
 list() {
   set -o nounset
   local tin_file=$1
