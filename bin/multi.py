@@ -36,6 +36,12 @@ class Error(Exception):
   pass
 
 
+def log(msg, *args):
+  if args:
+    msg = msg % args
+  print >>sys.stderr, msg
+
+
 def main(argv):
   """Returns an exit code."""
 
@@ -65,8 +71,16 @@ def main(argv):
   for (src, dest) in pairs:
     d = os.path.join(dest_base, dest)
 
+    # TODO: Do this more efficiently.
+    m = ['mkdir', '-p', os.path.dirname(d)]
+    log('\t$ %s', m)
+    exit_code = subprocess.call(m)
+    if exit_code != 0:
+      raise Error('%s failed with code %s' % (argv, exit_code))
+
     # TODO: Add extra args
-    argv = [action, src, d]
+    argv = [action, '--force', src, d]
+    log('\t$ %s', argv)
     exit_code = subprocess.call(argv)
     if exit_code != 0:
       raise Error('%s failed with code %s' % (argv, exit_code))
