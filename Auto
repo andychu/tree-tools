@@ -12,9 +12,11 @@ _manifest() {
 
 build() {
   # Everything here goes to stderr, so we don't have to redirect.
-  _manifest | bin/tin.sh create
-  # The thing that goes in the deploy tree?
-  echo tin.tin
+  _manifest | bin/tin.sh create --out $CDI_OUT/tin.tin
+
+  # TODO: Organize this a bit better.  These can be used on their own.
+  cp --verbose bin/multi.py $CDI_OUT/multi
+  cp --verbose tin/py_imports.py $CDI_OUT/py-deps
 }
 
 # not called 'test' 
@@ -25,8 +27,14 @@ test_() {
 }
 
 deploy() {
-  # TODO: CWD should be build dir?  Is that too complicated?
-  scp tin.tin $PBI_DEPLOY_DEST/tin/latest/
+  # TODO: Change working directory?
+
+  local dest=$PBI_DEPLOY_DEST/tin/latest/
+  scp \
+    $CDI_OUT/tin.tin \
+    $CDI_OUT/py-deps \
+    $CDI_OUT/multi \
+    $dest
 }
 
 "$@"
