@@ -2,9 +2,9 @@
 """Copy, move, or link files in a batch.
 
 Usage:
-  multi cp [<source-prefix>] [<dest-prefix>]
-  multi mv [<source-prefix>] [<dest-prefix>]
-  multi ln [<source-prefix>] [<dest-prefix>]
+  multi cp [<source-prefix>] [<dest-prefix>] [-- <cp-args>]
+  multi mv [<source-prefix>] [<dest-prefix>] [-- <mv-args>]
+  multi ln [<source-prefix>] [<dest-prefix>] [-- <ln-args>]
 
 Examples:
 
@@ -27,6 +27,8 @@ The source and dest may not contain spaces.
 # Make all the directories.
 
 
+import os
+import subprocess
 import sys
 
 
@@ -36,11 +38,37 @@ class Error(Exception):
 
 def main(argv):
   """Returns an exit code."""
+
+  try:
+    action = argv[1]
+    dest_base = argv[2]
+  except IndexError:
+    raise Error(__doc__)
+
+  pairs = []
   for line in sys.stdin:
     parts = line.split(None, 2)
-    print parts
+    if len(parts) == 1:
+      src = parts[0]
+      dest = parts[0]
+    elif len(parts) == 2:
+      src = parts[0]
+      dest = parts[1]
+    else:
+      raise AssertionError
 
-  print 'Hello from multi.py'
+    pairs.append((src, dest))
+
+  # For now we buffer all input
+  for (src, dest) in pairs:
+    d = os.path.join(dest_base, dest)
+
+    # TODO: Add extra args
+    argv = [action, src, d]
+    exit_code = subprocess.call(argv)
+    if exit_code != 0:
+      raise Error('%s failed with code %s' % (argv, exit_code))
+
   return 0
 
 
