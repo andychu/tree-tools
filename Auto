@@ -49,7 +49,7 @@ deploy() {
 
   which tree && tree
 
-  local dest=$PBI_DEPLOY_DEST/tin/latest/
+  local dest=$PBI_DEPLOY_DEST/tin/
   scp --verbose $out $dest
 }
 
