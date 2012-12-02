@@ -27,8 +27,6 @@ Test() {
 }
 
 Deploy() {
-  # TODO: Change working directory?
-
   cd $CDI_OUT
 
   # Make a release with the 'tin' directory in it
