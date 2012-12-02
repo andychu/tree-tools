@@ -10,7 +10,7 @@ _manifest() {
   find tin -type f -name \*.py -o -name \*.sh
 }
 
-build() {
+Build() {
   # Everything here goes to stderr, so we don't have to redirect.
   _manifest | bin/tin.sh create --out $CDI_OUT/tin.tin
 
@@ -20,13 +20,13 @@ build() {
 }
 
 # not called 'test' 
-test_() {
+Test() {
   # TODO: need a tool that runs all the functions that start with test-* in a
   # shell script?  Or maybe just ./all?
   ./tin-test.sh smoke-test
 }
 
-deploy() {
+Deploy() {
   # TODO: Change working directory?
 
   cd $CDI_OUT
