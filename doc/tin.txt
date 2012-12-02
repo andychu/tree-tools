@@ -1,0 +1,7 @@
+Tin
+===
+
+Self-extracting executable.
+
+Language-independent executable format.
+
