@@ -6,9 +6,8 @@ smoke-test() {
   set -o errexit
 
   # Build tin.tin, then run it twice.
-  ./AUTO build
-  TIN_VERBOSE=1 ./tin.tin --tin-info
-  TIN_VERBOSE=1 ./tin.tin --tin-info
+  TIN_VERBOSE=1 _tmp/out/tin.tin --tin-info
+  TIN_VERBOSE=1 _tmp/out/tin.tin --tin-info
 }
 
 if test $# -eq 0; then
