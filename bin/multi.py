@@ -47,7 +47,7 @@ def main(argv):
 
   pairs = []
   for line in sys.stdin:
-    parts = line.split(None, 2)
+    parts = line.split(None, 1)
     if len(parts) == 1:
       src = parts[0]
       dest = parts[0]
@@ -56,6 +56,8 @@ def main(argv):
       dest = parts[1]
     else:
       raise AssertionError
+    src = src.strip()
+    dest = dest.strip()
 
     pairs.append((src, dest))
 
