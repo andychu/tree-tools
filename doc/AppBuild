@@ -1,0 +1,19 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+
+# We are started in the doc/ dir, but let's use the parent dir.
+TIN_OUT=../_tmp/out
+
+build() {
+  #$TIN_OUT/tin.tin --help > $OUT/command-help
+
+  # TODO: Should app go at the root?
+  cp --verbose App $OUT
+  asciidoc \
+    --out-file $OUT/index.html \
+    index.txt 
+}
+
+build
