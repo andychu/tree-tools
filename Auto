@@ -29,12 +29,28 @@ test_() {
 deploy() {
   # TODO: Change working directory?
 
+  cd $CDI_OUT
+
+  # Make a release with the 'tin' directory in it
+  mkdir --parents release
+  cp \
+    tin.tin \
+    py-deps \
+    multi \
+    release
+
+  local version=0.1
+  local out=tin-$version.zip
+  rm --force $out
+
+  # Do it in this directory to get the right relative paths
+  cd release
+  zip $out *
+
+  which tree && tree
+
   local dest=$PBI_DEPLOY_DEST/tin/latest/
-  scp \
-    $CDI_OUT/tin.tin \
-    $CDI_OUT/py-deps \
-    $CDI_OUT/multi \
-    $dest
+  scp --verbose $out $dest
 }
 
 "$@"
