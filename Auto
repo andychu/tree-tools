@@ -47,7 +47,7 @@ Deploy() {
 
   cd release
   local tar=tin-$version.tar.gz 
-  tar --create --file $tar tin-$version
+  tar --create --gzip --file $tar tin-$version
 
   which tree && tree
 
