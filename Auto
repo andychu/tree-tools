@@ -30,22 +30,27 @@ Test() {
 }
 
 Deploy() {
-  cd $CDI_OUT
-
-  # Make a release with the 'tin' directory in it
   local version=0.1
 
-  mkdir --parents release/tin-$version
+  # Remove extensions since they're implementation details.
+  # NOTE: Using multi to prepare multi.
 
-  local files="tin.tin py-deps multi"
+  bin/multi.py cp _tmp/release/tin-$version <<EOF
+bin/multi.py multi
+tin/py_imports.py py-deps
+_tmp/out/tin.tin tin
+EOF
 
-  # No quoting!
-  cp $files release/tin-$version
+  # Create manifest with one file per line.  It has to contain the full
+  # directory.
 
-  # Create manifest with one file per line.
-  echo $files | xargs -n1 echo > release/tin-$version/Manifest
+  local manifest=_tmp/release/tin-$version/Manifest
+  echo -n > $manifest
+  for f in multi py-deps tin; do
+    echo tin-$version/$f >> $manifest
+  done
 
-  cd release
+  cd _tmp/release
   local tar=tin-$version.tar.gz 
   tar --create --gzip --file $tar tin-$version
 
