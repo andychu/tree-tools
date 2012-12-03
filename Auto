@@ -2,6 +2,7 @@
 
 # Everything has to succeed
 set -o errexit
+set -o nounset
 
 _manifest() {
   # Generate build-info
@@ -17,6 +18,8 @@ Build() {
   # TODO: Organize this a bit better.  These can be used on their own.
   cp --verbose bin/multi.py $CDI_OUT/multi
   cp --verbose tin/py_imports.py $CDI_OUT/py-deps
+
+  poly build doc/
 }
 
 # not called 'test' 
@@ -30,25 +33,28 @@ Deploy() {
   cd $CDI_OUT
 
   # Make a release with the 'tin' directory in it
-  mkdir --parents release
-  cp \
-    tin.tin \
-    py-deps \
-    multi \
-    release
-
   local version=0.1
-  local out=tin-$version.zip
-  rm --force $out
 
-  # Do it in this directory to get the right relative paths
+  mkdir --parents release/tin-$version
+
+  local files="tin.tin py-deps multi"
+
+  # No quoting!
+  cp $files release/tin-$version
+
+  # Create manifest with one file per line.
+  echo $files | xargs -n1 echo > release/tin-$version/Manifest
+
   cd release
-  zip $out *
+  local tar=tin-$version.tar.gz 
+  tar --create --file $tar tin-$version
 
   which tree && tree
 
   local dest=$PBI_DEPLOY_DEST/tin/
-  scp --verbose $out $dest
+  scp --verbose $tar $dest
+
+  # TODO: Deploy app
 }
 
 "$@"
