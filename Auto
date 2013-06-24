@@ -46,6 +46,7 @@ Test() {
   # TODO: need a tool that runs all the functions that start with test-* in a
   # shell script?  Or maybe just ./all?
   ./tin-test.sh smoke-test
+  ./run.sh all-unit-tests
 }
 
 Deploy() {
