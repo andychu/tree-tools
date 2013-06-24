@@ -1,0 +1,7 @@
+Name: tree-tools
+# TODO: generate from version from git
+Version: 0.1
+Publisher: polyd.org
+Build-Variant: portable
+# TODO: rename 'create'
+Exports: bin/create bin/multi bin/py-deps

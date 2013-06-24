@@ -1,0 +1,44 @@
+Tree Tools
+----------
+
+Formerly 'tin'.
+
+Tools that operate on trees of file.
+
+A "treespec" is a mapping of files from one place to another.
+
+- py-deps
+  - Takes a python file as input, set PYTHONPATH, and then creates a treespec.
+
+- create
+  - Take treespec as input.  Create archive file with output.
+  - TODO:
+    - rename to "pack" or something.
+    - should still retain the option to make the output executable?
+
+- multi
+  - cp
+  - mv
+  - ln
+  - Take tree as input
+
+
+The Basis package manager uses archive files and thus trees.  Should basis be
+in here?  Most of these tools are probably used for packages.
+
+Later this will evolve into using CONTENT space.  Right now it is just PATH
+space.
+
+Other Basis tools:
+- Tool to generate shell script stubs?  Or just a text file for now.  It can be
+  the same for everyone.
+
+Treespec
+--------
+
+Can't contain spaces in filenames.
+
+Right now I have this 'x' thing -- not sure I want that.
+
+
+
