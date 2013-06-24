@@ -5,6 +5,9 @@
 smoke-test() {
   set -o errexit
 
+  # DISABLED until we have the executable basis package.
+  exit 0
+
   # Build tin.tin, then run it twice.
   TIN_VERBOSE=1 _tmp/out/tin.tin --tin-info
   TIN_VERBOSE=1 _tmp/out/tin.tin --tin-info

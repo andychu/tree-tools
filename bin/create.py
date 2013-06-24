@@ -322,15 +322,20 @@ def main(argv):
       main_modules.append(archive_name)
     entries.append((file_type, _, archive_name))
 
-  if len(main_modules) == 0:
-    raise Error("Got no executables (with a leading 'x').")
-  elif len(main_modules) == 1:
-    main_module = main_modules[0]
+  if options.no_prelude:
+    main_module = None
+    default_out = None
   else:
-    raise Error('Got duplicate executables: %s' % main_modules)
+    if len(main_modules) == 0:
+      raise Error("Got no executables (with a leading 'x').")
+    elif len(main_modules) == 1:
+      main_module = main_modules[0]
+    else:
+      raise Error('Got duplicate executables: %s' % main_modules)
 
-  default_out  = os.path.basename(main_module)
-  default_out = os.path.splitext(default_out)[0] + '.tin'
+    default_out  = os.path.basename(main_module)
+    default_out = os.path.splitext(default_out)[0] + '.tin'
+
   out_filename = options.output or default_out
 
   if options.kind == 'zip':

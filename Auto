@@ -11,13 +11,32 @@ _manifest() {
   find tin -type f -name \*.py -o -name \*.sh
 }
 
+# TODO: rename to glue or yarn or something
+# unyarn
+create() {
+  bin/create.py "$@"
+}
+
+py-deps() {
+  bin/py_deps.py "$@"
+}
+
+bas() {
+  _tmp/deps/bas.sh "$@"
+}
+
+# TODO: Handle docopt
+
 Build() {
   # Everything here goes to stderr, so we don't have to redirect.
-  _manifest | bin/tin.sh create --out $CDI_OUT/tin.tin
-
-  # TODO: Organize this a bit better.  These can be used on their own.
-  cp --verbose bin/multi.py $CDI_OUT/multi
-  cp --verbose tin/py_imports.py $CDI_OUT/py-deps
+  create --out $CDI_OUT/tree-tools.tar.gz --no-prelude <<EOF
+Package
+bin/create.py bin/create
+bin/tin.sh bin/tin
+bin/py_deps.py bin/py-deps
+bin/multi.py bin/multi
+bin/hg-info.sh bin/hg-info
+EOF
 
   poly build doc/
 }
@@ -30,36 +49,14 @@ Test() {
 }
 
 Deploy() {
+  # TODO: Use CDI_HG_REVISION
+  #local version=$CDI_HG_REVISION
+
   local version=0.1
 
-  # Remove extensions since they're implementation details.
-  # NOTE: Using multi to prepare multi.
-
-  bin/multi.py cp _tmp/release/tin-$version <<EOF
-bin/multi.py multi
-tin/py_imports.py py-deps
-_tmp/out/tin.tin tin
-EOF
-
-  # Create manifest with one file per line.  It has to contain the full
-  # directory.
-
-  local manifest=_tmp/release/tin-$version/Manifest
-  echo -n > $manifest
-  for f in multi py-deps tin; do
-    echo tin-$version/$f >> $manifest
-  done
-
-  cd _tmp/release
-  local tar=tin-$version.tar.gz 
-  tar --create --gzip --file $tar tin-$version
-
-  which tree && tree
-
-  local dest=$PBI_DEPLOY_DEST/tin/
-  scp --verbose $tar $dest
-
-  # TODO: Deploy app
+  local name=tree-tools-$version.tar.gz
+  scp $CDI_OUT/mkdev.tar.gz $PBI_DEPLOY_DEST/tree-tools/$name
+  bas metadata-line $name >> $PBI_DEPLOY_DEST/tree-tools/Index.txt
 }
 
 "$@"
