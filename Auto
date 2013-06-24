@@ -55,7 +55,7 @@ Deploy() {
   local version=0.1
 
   local name=tree-tools-$version.tar.gz
-  scp $CDI_OUT/mkdev.tar.gz $PBI_DEPLOY_DEST/tree-tools/$name
+  scp $CDI_OUT/tree-tools.tar.gz $PBI_DEPLOY_DEST/tree-tools/$name
   bas metadata-line $name >> $PBI_DEPLOY_DEST/tree-tools/Index.txt
 }
 
