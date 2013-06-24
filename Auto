@@ -4,13 +4,6 @@
 set -o errexit
 set -o nounset
 
-_manifest() {
-  # Generate build-info
-  bin/tin.sh build-info-files
-  echo 'x bin/tin.sh bin/tin.sh'
-  find tin -type f -name \*.py -o -name \*.sh
-}
-
 # TODO: rename to glue or yarn or something
 # unyarn
 create() {
