@@ -33,6 +33,22 @@ Other Basis tools:
 - Tool to generate shell script stubs?  Or just a text file for now.  It can be
   the same for everyone.
 
+Other Tree Tools
+----------------
+
+- Checksum tool
+  - For embedding in Basis packages
+  - For checking that they're installed correctly
+
+- Filter to make things read-only?
+
+- Pack / Unpack tool
+
+- Eventually: Tool for differential transfer of content, like Git.
+
+- Transform content <-> path space?
+
+
 Treespec
 --------
 

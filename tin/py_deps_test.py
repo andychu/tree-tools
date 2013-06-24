@@ -1,6 +1,6 @@
 #!/usr/bin/python -S
 """
-py_imports_test.py: Tests for py_imports.py
+py_deps_test.py: Tests for py_deps.py
 """
 
 __author__ = 'Andy Chu'
@@ -9,10 +9,10 @@ __author__ = 'Andy Chu'
 import sys
 import unittest
 
-import py_imports  # module under test
+import py_deps  # module under test
 
 
-class PyImportsTest(unittest.TestCase):
+class PyDepsTest(unittest.TestCase):
 
   def setUp(self):
     pass
@@ -26,7 +26,7 @@ class PyImportsTest(unittest.TestCase):
               ( 'simplejson', 
                 '/home/andy/dev/simplejson-2.1.5/simplejson/__init__.py')
               ]
-    print list(py_imports.ModuleToRelativePath(pairs, 'main'))
+    print list(py_deps.ModuleToRelativePath(pairs, 'main'))
 
 
 if __name__ == '__main__':
