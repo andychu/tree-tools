@@ -252,6 +252,11 @@ def CreateOptionsParser():
       '-o', '--output', dest='output', type='str', default='',
       help='Output name.  By default it will be determined from the executable')
 
+  # TODO: reverse the default on this -- add the prelude to make it executable.
+  parser.add_option(
+      '--no-prelude', dest='no_prelude', action='store_true',
+      help="Don't include a shell script prelude; make it a raw .tar.gz file")
+
   # This should prevent reliance on system libraries?  But allow stdlib.  TODO:
   # test it out.
   parser.add_option(
@@ -385,19 +390,22 @@ def main(argv):
 
     log('(computed checksum) -> %s', checksum_name)
 
-    if options.set_pythonpath:
-      set_pythonpath = '1'
+    if options.no_prelude:
+      log('Wrote tar %s', out_filename)
     else:
-      set_pythonpath = '0'
-    prelude = _TAR_PRELUDE.replace(
-        '_MAIN_MODULE_', main_module).replace(
-        '_CHECKSUM_', checksum).replace(
-        '_EXTRA_FLAGS_', ' '.join(extra_flags)).replace(
-        '_SET_PYTHONPATH_', set_pythonpath)
+      if options.set_pythonpath:
+        set_pythonpath = '1'
+      else:
+        set_pythonpath = '0'
+      prelude = _TAR_PRELUDE.replace(
+          '_MAIN_MODULE_', main_module).replace(
+          '_CHECKSUM_', checksum).replace(
+          '_EXTRA_FLAGS_', ' '.join(extra_flags)).replace(
+          '_SET_PYTHONPATH_', set_pythonpath)
 
-    WritePrelude(out_filename, prelude)
-    log('Wrote self-extracting tar %s with extra args %s',
-        out_filename, extra_flags)
+      WritePrelude(out_filename, prelude)
+      log('Wrote self-extracting tar %s with extra args %s',
+          out_filename, extra_flags)
 
   return 0
 
