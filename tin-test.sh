@@ -17,6 +17,12 @@ smoke-test() {
     | _tmp/out/tin.tin create --no-prelude --output _tmp/raw.tar.gz
 }
 
+create-test() {
+  local out=_tmp/test.tar.gz
+  echo Auto Auto | bin/create.py --no-prelude --output $out
+  file $out
+}
+
 if test $# -eq 0; then
   # Run all tests here
   smoke-test

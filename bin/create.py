@@ -337,6 +337,8 @@ def main(argv):
     default_out = os.path.splitext(default_out)[0] + '.tin'
 
   out_filename = options.output or default_out
+  if not out_filename:
+    raise Error('--output required')
 
   if options.kind == 'zip':
     # Write input files to a .zip
@@ -419,5 +421,5 @@ if __name__ == '__main__':
   try:
     sys.exit(main(sys.argv))
   except Error, e:
-    print >> sys.stderr, e.args[0]
+    print >> sys.stderr, 'create:', e.args[0]
     sys.exit(1)
