@@ -18,18 +18,30 @@ bas() {
   _tmp/deps/bas.sh "$@"
 }
 
-# TODO: Handle docopt
+package-manifest() {
+  PYTHONPATH=.:_tmp/deps/docopt-master py-deps bin.multi
 
-Build() {
-  # Everything here goes to stderr, so we don't have to redirect.
-  create --out $CDI_OUT/tree-tools.tar.gz --no-prelude <<EOF
+  cat <<EOF
 Package
+_tmp/Package.version Package.version
 bin/create.py bin/create
 bin/tin.sh bin/tin
 bin/py_deps.py bin/py-deps
-bin/multi.py bin/multi
+_tmp/multi bin/multi
 bin/hg-info.sh bin/hg-info
 EOF
+}
+
+Build() {
+  # Python stub
+  bas python-stub multi.py > _tmp/multi
+  chmod +x _tmp/multi
+
+  local version=$(bas get-package-attr Package Version)
+  bas make-version tree-tools $version > _tmp/Package.version
+
+  # Everything here goes to stderr, so we don't have to redirect.
+  package-manifest | create --out $CDI_OUT/tree-tools.tar.gz --no-prelude
 
   poly build doc/
 }
