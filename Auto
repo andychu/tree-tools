@@ -36,9 +36,9 @@ EOF
   chmod +x _tmp/multi
   echo _tmp/multi bin/multi 
 
-  # Package.version
-  bas make-version Package >_tmp/Package.version
-  echo _tmp/Package.version Package.version
+  # Package.stamp
+  bas make-stamp Package >_tmp/Package.stamp
+  echo _tmp/Package.stamp Package.stamp
 }
 
 Build() {
