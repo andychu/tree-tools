@@ -19,27 +19,29 @@ bas() {
 }
 
 package-manifest() {
-  PYTHONPATH=.:_tmp/deps/docopt-master py-deps bin.multi
-
+  # Standalone scripts.
   cat <<EOF
 Package
-_tmp/Package.version Package.version
 bin/create.py bin/create
 bin/tin.sh bin/tin
 bin/py_deps.py bin/py-deps
-_tmp/multi bin/multi
 bin/hg-info.sh bin/hg-info
 EOF
+
+  # Crawl deps.  TODO: docopt.
+  PYTHONPATH=.:_tmp/deps/docopt-master py-deps bin.multi
+
+  # Python stub
+  bas python-stub multi.py >_tmp/multi
+  chmod +x _tmp/multi
+  echo _tmp/multi bin/multi 
+
+  # Package.version
+  bas make-version Package >_tmp/Package.version
+  echo _tmp/Package.version Package.version
 }
 
 Build() {
-  # Python stub
-  bas python-stub multi.py > _tmp/multi
-  chmod +x _tmp/multi
-
-  local version=$(bas get-package-attr Package Version)
-  bas make-version tree-tools $version > _tmp/Package.version
-
   # Everything here goes to stderr, so we don't have to redirect.
   package-manifest | create --out $CDI_OUT/tree-tools.tar.gz --no-prelude
 
