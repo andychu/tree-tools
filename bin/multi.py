@@ -30,6 +30,7 @@ The source and dest may not contain spaces.
 import os
 import subprocess
 import sys
+import tarfile
 
 
 class Error(Exception):
@@ -39,7 +40,22 @@ class Error(Exception):
 def log(msg, *args):
   if args:
     msg = msg % args
-  print >>sys.stderr, msg
+  print >>sys.stderr, 'multi:', msg
+
+
+def MultiTar(pairs, dest):
+  # gzip compression.
+  t = tarfile.open(dest, mode='w:gz')
+
+  input_files = []
+  for filename, archive_name in pairs:
+    log('%s -> %s', filename, archive_name)
+    t.add(filename, arcname=archive_name)
+    input_files.append(filename)
+  t.close()
+
+  log('Wrote %s', dest)
+  return 0  # exit code
 
 
 def main(argv):
@@ -66,6 +82,9 @@ def main(argv):
     dest = dest.strip()
 
     pairs.append((src, dest))
+
+  if action == 'tar':
+    return MultiTar(pairs, dest_base)
 
   # For now we buffer all input
   for (src, dest) in pairs:
