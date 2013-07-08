@@ -44,6 +44,11 @@ def log(msg, *args):
   print >>sys.stderr, 'multi:', msg
 
 
+def RemoveDupes(pairs):
+  # sort by the destination
+  return sorted(set(pairs), key=lambda p: p[1])
+
+
 def MultiTar(pairs, dest):
   # gzip compression.
   t = tarfile.open(dest, mode='w:gz')
@@ -83,6 +88,8 @@ def main(argv):
     dest = dest.strip()
 
     pairs.append((src, dest))
+
+  pairs = RemoveDupes(pairs)
 
   if action == 'tar':
     return MultiTar(pairs, dest_base)
