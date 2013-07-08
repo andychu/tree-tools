@@ -1,23 +1,24 @@
 #!/usr/bin/python -S
-"""Copy, move, or link files in a batch.
+"""Copy, move, link, or tar files in a batch.
 
 Usage:
   multi cp [<source-prefix>] [<dest-prefix>] [-- <cp-args>]
   multi mv [<source-prefix>] [<dest-prefix>] [-- <mv-args>]
   multi ln [<source-prefix>] [<dest-prefix>] [-- <ln-args>]
+  multi tar [<dest-file>]
 
 Examples:
 
   echo foo bar | multi cp
 
-Lines Pairs of (source, dest) are read from stdin.  Te
+Each line read from stdin specifies a file to be
+copied/moved/linked/tarred.  It is either a filename by itself, or a pair of
+filenames, separated by whitespace.  Filenames may not contain spaces.
 
 Input syntax:
 
     App App.backup       # move App -> App.backup
     Tests                # move Tests -> Tests
-
-The source and dest may not contain spaces.
 """
 
 # TODO:
