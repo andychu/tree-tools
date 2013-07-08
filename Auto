@@ -3,15 +3,14 @@
 # Everything has to succeed
 set -o errexit
 set -o nounset
-
-# TODO: rename to glue or yarn or something
-# unyarn
-create() {
-  bin/create.py "$@"
-}
+set -o pipefail
 
 py-deps() {
   bin/py_deps.py "$@"
+}
+
+multi() {
+  bin/multi.py "$@"
 }
 
 bas() {
@@ -22,8 +21,6 @@ package-manifest() {
   # Standalone scripts.
   cat <<EOF
 Package
-bin/create.py bin/create
-bin/tin.sh bin/tin
 bin/py_deps.py bin/py-deps
 bin/hg-info.sh bin/hg-info
 EOF
@@ -43,7 +40,7 @@ EOF
 
 Build() {
   # Everything here goes to stderr, so we don't have to redirect.
-  package-manifest | create --out $CDI_OUT/tree-tools.tar.gz --no-prelude
+  package-manifest | multi tar $CDI_OUT/tree-tools.tar.gz
 
   poly build doc/
 }

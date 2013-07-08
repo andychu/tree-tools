@@ -3,5 +3,4 @@ Name: tree-tools
 Version: 0.1
 Publisher: polyd.org
 Build-Variant: portable
-# TODO: rename 'create'
-Exports: bin/create bin/hg-info bin/multi bin/py-deps
+Exports: bin/hg-info bin/multi bin/py-deps
