@@ -25,11 +25,16 @@ EOF
 
 test-tar() {
   mkdir -p $TEST_DIR/tar
+  # Test dupes
   multi tar $TEST_DIR/test.tar.gz <<EOF
+Auto AA
 Auto AA
 Tree.cfg TT
 Package dir/Package
 README dir1/dir2/README
+README   dir1/dir2/README
+Auto Auto
+Auto
 EOF
 
   tar --list -z <$TEST_DIR/test.tar.gz
