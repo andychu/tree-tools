@@ -6,20 +6,33 @@ multi() {
   bin/multi.py "$@"
 }
 
+readonly TEST_DIR=_tmp/multi-test
+
 test-basic() {
   set -o errexit
 
-  local dir=_tmp/multi-test
-  mkdir -p $dir/1
-  echo Auto AA | multi cp $dir/1
+  mkdir -p $TEST_DIR/1
+  echo Auto AA | multi cp $TEST_DIR/1
 
-  mkdir -p $dir/2
-  multi cp $dir/2 <<EOF
+  mkdir -p $TEST_DIR/2
+  multi cp $TEST_DIR/2 <<EOF
 Auto
 Tree.cfg TT
 EOF
 
   tree _tmp/
+}
+
+test-tar() {
+  mkdir -p $TEST_DIR/tar
+  multi tar $TEST_DIR/test.tar.gz <<EOF
+Auto AA
+Tree.cfg TT
+Package dir/Package
+README dir1/dir2/README
+EOF
+
+  tar --list -z <$TEST_DIR/test.tar.gz
 }
 
 "$@"
