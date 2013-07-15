@@ -23,6 +23,12 @@ Input syntax:
 
 # TODO:
 #
+# The usage isn't right, we haven't implemented [source-prefix].  I should use
+# docopt to fix this.
+#
+# Should we add an --internal or --shell options?  might be faster for a lot of
+# cases.
+#
 # Accept copy, move, link for readability?  Yes, it's like GNU long options.
 #
 # Make all the directories.
