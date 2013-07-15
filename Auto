@@ -51,8 +51,8 @@ Test() {
 Deploy() {
   local version=$CDI_HG_REVISION
   local name=tree-tools.$version.tar.gz
-  scp $CDI_OUT/tree-tools.tar.gz $PBI_DEPLOY_DEST/tree-tools/$name
-  basisc metadata-line $name >> $PBI_DEPLOY_DEST/tree-tools/Index.txt
+  scp $CDI_OUT/tree-tools.tar.gz $CDI_DEPLOY_DEST/tree-tools/$name
+  basisc metadata-line $name >> $CDI_DEPLOY_DEST/tree-tools/Index.txt
 }
 
 "$@"
