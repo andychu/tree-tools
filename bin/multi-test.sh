@@ -23,6 +23,16 @@ EOF
   tree _tmp/
 }
 
+# This fails because we passed --no-force to override.
+# TODO: Should --force not be the default?
+test-args() {
+  multi cp $TEST_DIR/3 -- --no-force <<EOF
+Auto
+Tree.cfg Auto
+EOF
+  tree $TEST_DIR/3
+}
+
 test-tar() {
   mkdir -p $TEST_DIR/tar
   # Test dupes
@@ -39,6 +49,18 @@ EOF
 
   tar --list -z <$TEST_DIR/test.tar.gz
 }
+
+test-empty-dir-made() {
+  local src=$TEST_DIR/4
+  rm -rf $src
+  mkdir -p $src/dir
+  touch $src/file
+
+  find $src | multi cp $TEST_DIR/copy-4
+
+  tree $TEST_DIR/copy-4
+}
+
 
 "$@"
 

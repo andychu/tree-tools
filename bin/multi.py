@@ -2,9 +2,9 @@
 """Copy, move, link, or tar files in a batch.
 
 Usage:
-  multi cp [<source-prefix>] [<dest-prefix>] [-- <cp-args>]
-  multi mv [<source-prefix>] [<dest-prefix>] [-- <mv-args>]
-  multi ln [<source-prefix>] [<dest-prefix>] [-- <ln-args>]
+  multi cp [<source-prefix>] [<dest-prefix>] [ -- <cp-arg>... ]
+  multi mv [<source-prefix>] [<dest-prefix>] [ -- <mv-arg>... ]
+  multi ln [<source-prefix>] [<dest-prefix>] [ -- <ln-arg>... ]
   multi tar [<dest-file>]
 
 Examples:
@@ -34,6 +34,7 @@ Input syntax:
 # Make all the directories.
 
 
+import errno
 import os
 import subprocess
 import sys
@@ -100,9 +101,35 @@ def main(argv):
   if action == 'tar':
     return MultiTar(pairs, dest_base)
 
+  # TODO:
+  # - switch to docopt
+  # - the default should be a more efficient internal version
+  #   - but you will need to expose the full power of cp, ln, mv
+  #   - for --overwrite, --no-dereference, etc.
+  extra_argv = argv[4:]
+
+  #if action == 'cp':
+  #  extra_argv = opts['<cp-arg>']
+  #elif action == 'mv':
+  #  extra_argv = opts['<mv-arg>']
+  #elif action == 'cp':
+  #  extra_argv = opts['<cp-arg>']
+  #else:
+  #  raise AssertionError(action)
+
   # For now we buffer all input
   for (src, dest) in pairs:
     d = os.path.join(dest_base, dest)
+
+    # cp doesn't copy directories, so we should make them.
+    # 'find' output often includes directories.
+    if action == 'cp' and os.path.isdir(src):
+      try:
+        os.makedirs(d)
+      except OSError, e:
+        if e.errno != errno.EEXIST:
+          raise
+      continue
 
     # TODO: Do this more efficiently.
     m = ['mkdir', '-p', os.path.dirname(d)]
@@ -111,8 +138,7 @@ def main(argv):
     if exit_code != 0:
       raise Error('%s failed with code %s' % (argv, exit_code))
 
-    # TODO: Add extra args
-    argv = [action, '--force', src, d]
+    argv = [action, '--force'] + extra_argv + [src, d]
     log('\t$ %s', argv)
     exit_code = subprocess.call(argv)
     if exit_code != 0:
