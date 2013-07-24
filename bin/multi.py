@@ -137,20 +137,12 @@ class CopyHandler(object):
   def OnDir(self, source, rel_dest):
     # make the dir
     dest = os.path.join(self.dest_base, rel_dest)
-    try:
-      os.makedirs(dest)
-    except OSError, e:
-      if e.errno != errno.EEXIST:
-        raise
+    self.maker.mkdir(dest)
 
   def OnLink(self, source, rel_dest):
     target = os.readlink(source)
     dest = os.path.join(self.dest_base, rel_dest)
-    try:
-      os.makedirs(os.path.dirname(dest))
-    except OSError, e:
-      if e.errno != errno.EEXIST:
-        raise
+    self.maker.mkdir(os.path.dirname(dest))
 
     # link to the same place as the source
     try:
