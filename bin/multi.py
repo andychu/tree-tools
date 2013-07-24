@@ -193,7 +193,7 @@ def Dispatch(pairs, handler):
   # TODO: put the action there
   log('copied %d files, %d dirs, %d links', num_files, num_dirs, num_links)
   # TODO: fix
-  log('num syscalls: %d', handler.maker.num_syscalls)
+  log('num mkdir syscalls: %d', handler.maker.num_mkdir)
 
 
 class DirMaker(object):
@@ -205,7 +205,7 @@ class DirMaker(object):
   def __init__(self, dest='.'):
     self.dest = dest
     self.made = {}  # cache of dirs we already made
-    self.num_syscalls = 0  # assuming os.mkdir() is one syscall
+    self.num_mkdir = 0  # assuming os.mkdir() is one syscall
 
   def mkdir(self, path):
     """
@@ -226,16 +226,16 @@ class DirMaker(object):
       return
     self.made[path] = True
 
-    #print 'mkdir', path, self.num_syscalls
+    #print 'mkdir', path, self.num_mkdir
     try:
-      self.num_syscalls += 1
+      self.num_mkdir += 1
       os.mkdir(path)
     except OSError, e:
       #print e
       if e.errno == errno.ENOENT:   # parent doesn't exist
         # recurse: this ensures the parent exists
         self.mkdir(os.path.dirname(path))
-        self.num_syscalls += 1
+        self.num_mkdir += 1
         os.mkdir(path)
       elif e.errno == errno.EEXIST:  # already exists
         pass
