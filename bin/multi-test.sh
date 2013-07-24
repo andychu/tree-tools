@@ -8,7 +8,7 @@ multi() {
 
 readonly TEST_DIR=_tmp/multi-test
 
-test-basic() {
+test-cp() {
   set -o errexit
 
   mkdir -p $TEST_DIR/1
@@ -17,7 +17,7 @@ test-basic() {
   mkdir -p $TEST_DIR/2
   multi cp $TEST_DIR/2 <<EOF
 Auto
-Tree.cfg TT
+Tree.cfg foo/TT
 EOF
 
   tree _tmp/

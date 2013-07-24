@@ -36,7 +36,9 @@ Input syntax:
 
 import errno
 import os
+import shutil
 import subprocess
+import stat
 import sys
 import tarfile
 
@@ -51,12 +53,58 @@ def log(msg, *args):
   print >>sys.stderr, 'multi:', msg
 
 
+
+def ShellOut(action, pairs, dest_base, extra_argv):
+  """
+  Slower implementation.  Do I need this?
+  """
+  #if action == 'cp':
+  #  extra_argv = opts['<cp-arg>']
+  #elif action == 'mv':
+  #  extra_argv = opts['<mv-arg>']
+  #elif action == 'cp':
+  #  extra_argv = opts['<cp-arg>']
+  #else:
+  #  raise AssertionError(action)
+
+  # For now we buffer all input
+  for (src, dest) in pairs:
+    d = os.path.join(dest_base, dest)
+
+    # cp doesn't copy directories, so we should make them.
+    # 'find' output often includes directories.
+    if action == 'cp' and os.path.isdir(src):
+      try:
+        os.makedirs(d)
+      except OSError, e:
+        if e.errno != errno.EEXIST:
+          raise
+      continue
+
+    # TODO: Do this more efficiently.
+    m = ['mkdir', '-p', os.path.dirname(d)]
+    #log('YAH\t$ %s', m)
+    exit_code = subprocess.call(m)
+    if exit_code != 0:
+      raise Error('%s failed with code %s' % (argv, exit_code))
+
+    argv = [action, '--force'] + extra_argv + [src, d]
+    #log('\t$ %s', argv)
+    exit_code = subprocess.call(argv)
+    if exit_code != 0:
+      raise Error('%s failed with code %s' % (argv, exit_code))
+
+
 def RemoveDupes(pairs):
   # sort by the destination
   return sorted(set(pairs), key=lambda p: p[1])
 
 
 def MultiTar(pairs, dest):
+  """
+  TODO: Does this handle symlinks and directories correctly?  Or does it
+  dereference symlinks (which you don't want in general)?
+  """
   # gzip compression.
   t = tarfile.open(dest, mode='w:gz')
 
@@ -69,6 +117,79 @@ def MultiTar(pairs, dest):
 
   log('Wrote %s', dest)
   return 0  # exit code
+
+
+class CopyHandler(object):
+  def __init__(self, dest_base):
+    self.dest_base = dest_base
+    self.maker = DirMaker()
+
+  def OnFile(self, source, rel_dest):
+    # TODO: may not want to allow dest to be an absolute path.  This violates
+    # an invariant.
+
+    dest = os.path.join(self.dest_base, rel_dest)
+    self.maker.mkdir(os.path.dirname(dest))
+
+    # TODO: mkdir too
+    shutil.copyfile(source, dest)
+
+  def OnDir(self, source, rel_dest):
+    # make the dir
+    dest = os.path.join(self.dest_base, rel_dest)
+    try:
+      os.makedirs(dest)
+    except OSError, e:
+      if e.errno != errno.EEXIST:
+        raise
+
+  def OnLink(self, source, rel_dest):
+    # TODO: link to the same place as the source
+    pass
+
+
+def Dispatch(pairs, handler):
+  for (source, dest) in pairs:
+    mode = os.lstat(source).st_mode
+    if stat.S_ISREG(mode):
+      handler.OnFile(source, dest)
+    elif stat.S_ISDIR(mode):
+      handler.OnDir(source, dest)
+    elif stat.S_ISLNK(mode):
+      handler.OnLink(source, dest)
+    else:
+      raise Error("Can only handle files, dirs, and symlinks: %r" % source)
+
+
+class DirMaker(object):
+  """
+  More efficient way to do many os.makedirs().  This saves syscalls, and also
+  doesn't have the dumb behavior of raising an error when the rightmost dir
+  already exists.
+  """
+  def __init__(self, dest='.'):
+    self.dest = dest
+    self.made = {}  # cache of dirs we already made
+
+  def mkdir(self, path):
+    """
+    Args:
+      path: absolute or relative path
+
+    Returns:
+      None
+
+    Raises:
+      Error conditions:
+      - can't mkdir over a file/symlink/etc.
+      - permission error
+    """
+    # TODO: Use self.made
+    try:
+      os.makedirs(path)
+    except OSError, e:
+      if e.errno != errno.EEXIST:
+        raise
 
 
 def main(argv):
@@ -98,8 +219,6 @@ def main(argv):
 
   pairs = RemoveDupes(pairs)
 
-  if action == 'tar':
-    return MultiTar(pairs, dest_base)
 
   # TODO:
   # - switch to docopt
@@ -108,41 +227,13 @@ def main(argv):
   #   - for --overwrite, --no-dereference, etc.
   extra_argv = argv[4:]
 
-  #if action == 'cp':
-  #  extra_argv = opts['<cp-arg>']
-  #elif action == 'mv':
-  #  extra_argv = opts['<mv-arg>']
-  #elif action == 'cp':
-  #  extra_argv = opts['<cp-arg>']
-  #else:
-  #  raise AssertionError(action)
-
-  # For now we buffer all input
-  for (src, dest) in pairs:
-    d = os.path.join(dest_base, dest)
-
-    # cp doesn't copy directories, so we should make them.
-    # 'find' output often includes directories.
-    if action == 'cp' and os.path.isdir(src):
-      try:
-        os.makedirs(d)
-      except OSError, e:
-        if e.errno != errno.EEXIST:
-          raise
-      continue
-
-    # TODO: Do this more efficiently.
-    m = ['mkdir', '-p', os.path.dirname(d)]
-    log('\t$ %s', m)
-    exit_code = subprocess.call(m)
-    if exit_code != 0:
-      raise Error('%s failed with code %s' % (argv, exit_code))
-
-    argv = [action, '--force'] + extra_argv + [src, d]
-    log('\t$ %s', argv)
-    exit_code = subprocess.call(argv)
-    if exit_code != 0:
-      raise Error('%s failed with code %s' % (argv, exit_code))
+  if action == 'tar':
+    return MultiTar(pairs, dest_base)
+  elif action == 'cp':
+    copy = CopyHandler(dest_base)
+    return Dispatch(pairs, copy)
+  else:
+    ShellOut(action, pairs, dest_base, extra_argv)
 
   return 0
 
@@ -151,5 +242,5 @@ if __name__ == '__main__':
   try:
     sys.exit(main(sys.argv))
   except Error, e:
-    print >> sys.stderr, e.args[0]
+    print >>sys.stderr, 'multi: ' + e.args[0]
     sys.exit(1)
