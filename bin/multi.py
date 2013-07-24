@@ -120,9 +120,17 @@ def MultiTar(pairs, dest):
 
 
 class CopyHandler(object):
-  def __init__(self, dest_base):
+  """Copy a tree of files, dirs, symlinks.
+
+  TODO:
+  flags: --force means overwrite
+         --dereference means to follow symlinks
+  """
+
+  def __init__(self, dest_base, force=False):
     self.dest_base = dest_base
     self.maker = DirMaker()
+    self.force = force
 
   def OnFile(self, source, rel_dest):
     # TODO: may not want to allow dest to be an absolute path.  This violates
@@ -149,10 +157,19 @@ class CopyHandler(object):
       os.symlink(target, dest)
     except OSError, e:
       print target, dest
-      raise
+      if e.errno == errno.EEXIST:
+        if self.force:
+          os.remove(dest)
+          os.symlink(target, dest)
+        else:
+          raise Error("Can't overwrite symlink %s" % dest)
+      else:
+        raise
 
 
 def Dispatch(pairs, handler):
+  """Read input files and pass them to a handler."""
+
   num_files = 0
   num_dirs = 0
   num_links = 0
@@ -175,6 +192,8 @@ def Dispatch(pairs, handler):
 
   # TODO: put the action there
   log('copied %d files, %d dirs, %d links', num_files, num_dirs, num_links)
+  # TODO: fix
+  log('num syscalls: %d', handler.maker.num_syscalls)
 
 
 class DirMaker(object):
@@ -186,6 +205,7 @@ class DirMaker(object):
   def __init__(self, dest='.'):
     self.dest = dest
     self.made = {}  # cache of dirs we already made
+    self.num_syscalls = 0  # assuming os.mkdir() is one syscall
 
   def mkdir(self, path):
     """
@@ -200,12 +220,27 @@ class DirMaker(object):
       - can't mkdir over a file/symlink/etc.
       - permission error
     """
-    # TODO: Use self.made
+    # Don't try to make stuff we already made.  Lots of files will be in the
+    # same dirs.
+    if path in self.made:
+      return
+    self.made[path] = True
+
+    #print 'mkdir', path, self.num_syscalls
     try:
-      os.makedirs(path)
+      self.num_syscalls += 1
+      os.mkdir(path)
     except OSError, e:
-      if e.errno != errno.EEXIST:
-        raise
+      #print e
+      if e.errno == errno.ENOENT:   # parent doesn't exist
+        # recurse: this ensures the parent exists
+        self.mkdir(os.path.dirname(path))
+        self.num_syscalls += 1
+        os.mkdir(path)
+      elif e.errno == errno.EEXIST:  # already exists
+        pass
+      else:
+        raise  # permission errors, etc.
 
 
 def main(argv):
@@ -246,7 +281,10 @@ def main(argv):
   if action == 'tar':
     return MultiTar(pairs, dest_base)
   elif action == 'cp':
-    copy = CopyHandler(dest_base)
+    # TODO: parse --force.  cp has it true by default, and has --no-clobber to
+    # turn it off.  Hm.  I think maybe mine should be false.
+    # Have to test 2 cases: symlinks and files.
+    copy = CopyHandler(dest_base, force=True)
     return Dispatch(pairs, copy)
   else:
     ShellOut(action, pairs, dest_base, extra_argv)
