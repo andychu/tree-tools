@@ -23,15 +23,17 @@ Input syntax:
 
 # TODO:
 #
+# - implement ln and mv in-process
+# - Accept copy, move, link for readability?  Yes, it's like GNU long options.
+# - implement --force and --dereference
+#   --force defaults to yes or no?
+#
 # The usage isn't right, we haven't implemented [source-prefix].  I should use
 # docopt to fix this.
 #
-# Should we add an --internal or --shell options?  might be faster for a lot of
-# cases.
-#
-# Accept copy, move, link for readability?  Yes, it's like GNU long options.
-#
-# Make all the directories.
+# Should we keep the ShellOut?  probably not... unless there are some obscure
+# flags we need.
+# I mean there is stuff like --interactive.  and recursive copy.  hm.
 
 
 import errno
