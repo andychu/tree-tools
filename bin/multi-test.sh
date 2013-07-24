@@ -11,14 +11,23 @@ readonly TEST_DIR=_tmp/multi-test
 test-cp() {
   set -o errexit
 
-  mkdir -p $TEST_DIR/1
-  echo Auto AA | multi cp $TEST_DIR/1
+  rm -rf $TEST_DIR  # TODO: shell framework needs functions for this
 
-  mkdir -p $TEST_DIR/2
-  multi cp $TEST_DIR/2 <<EOF
+  mkdir -p $TEST_DIR/cp1
+  echo Auto AA | multi cp $TEST_DIR/cp1
+
+  mkdir -p $TEST_DIR/cp2
+  multi cp $TEST_DIR/cp2 <<EOF
 Auto
 Tree.cfg foo/TT
 EOF
+
+  mkdir -p $TEST_DIR/cp3
+  touch $TEST_DIR/cp3/file
+  mkdir -p $TEST_DIR/cp3/dir
+  ln -sf /tmp $TEST_DIR/cp3/link
+
+  find $TEST_DIR/cp3 | multi cp $TEST_DIR/cp4
 
   tree _tmp/
 }
