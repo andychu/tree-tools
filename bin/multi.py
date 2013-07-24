@@ -144,21 +144,45 @@ class CopyHandler(object):
         raise
 
   def OnLink(self, source, rel_dest):
-    # TODO: link to the same place as the source
-    pass
+    target = os.readlink(source)
+    dest = os.path.join(self.dest_base, rel_dest)
+    try:
+      os.makedirs(os.path.dirname(dest))
+    except OSError, e:
+      if e.errno != errno.EEXIST:
+        raise
+
+    # link to the same place as the source
+    try:
+      os.symlink(target, dest)
+    except OSError, e:
+      print target, dest
+      raise
 
 
 def Dispatch(pairs, handler):
+  num_files = 0
+  num_dirs = 0
+  num_links = 0
+
   for (source, dest) in pairs:
+    # lstat so we don't dereference symlinks.
     mode = os.lstat(source).st_mode
-    if stat.S_ISREG(mode):
+    # NOTE: test for link should come first
+    if stat.S_ISLNK(mode):
+      handler.OnLink(source, dest)
+      num_links += 1
+    elif stat.S_ISREG(mode):
       handler.OnFile(source, dest)
+      num_files += 1
     elif stat.S_ISDIR(mode):
       handler.OnDir(source, dest)
-    elif stat.S_ISLNK(mode):
-      handler.OnLink(source, dest)
+      num_dirs += 1
     else:
       raise Error("Can only handle files, dirs, and symlinks: %r" % source)
+
+  # TODO: put the action there
+  log('copied %d files, %d dirs, %d links', num_files, num_dirs, num_links)
 
 
 class DirMaker(object):
