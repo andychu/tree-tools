@@ -121,6 +121,22 @@ def MultiTar(pairs, dest):
   return 0  # exit code
 
 
+def _MakeLink(target, dest, force):
+  # link to the same place as the source
+  try:
+    os.symlink(target, dest)
+  except OSError, e:
+    print target, dest
+    if e.errno == errno.EEXIST:
+      if self.force:
+        os.remove(dest)
+        os.symlink(target, dest)
+      else:
+        raise Error("Can't overwrite symlink %s" % dest)
+    else:
+      raise
+
+
 class CopyHandler(object):
   """Copy a tree of files, dirs, symlinks.
 
@@ -154,19 +170,33 @@ class CopyHandler(object):
     dest = os.path.join(self.dest_base, rel_dest)
     self.maker.mkdir(os.path.dirname(dest))
 
-    # link to the same place as the source
-    try:
-      os.symlink(target, dest)
-    except OSError, e:
-      print target, dest
-      if e.errno == errno.EEXIST:
-        if self.force:
-          os.remove(dest)
-          os.symlink(target, dest)
-        else:
-          raise Error("Can't overwrite symlink %s" % dest)
-      else:
-        raise
+    _MakeLink(target, dest, force)
+
+
+class LinkHandler(object):
+  """Symlink files, dirs.
+
+  TODO: links could have an optimization to dereference the target?
+  """
+  def __init__(self, dest_base, force=False):
+    self.dest_base = dest_base
+    self.maker = DirMaker()
+    self.force = force
+
+  def _Link(self, source, rel_dest):
+    dest = os.path.join(self.dest_base, rel_dest)
+    self.maker.mkdir(os.path.dirname(dest))
+
+    _MakeLink(source, dest, self.force)
+
+  def OnFile(self, source, rel_dest):
+    self._Link(source, rel_dest)
+
+  def OnDir(self, source, rel_dest):
+    self._Link(source, rel_dest)
+
+  def OnLink(self, source, rel_dest):
+    self._Link(source, rel_dest)
 
 
 def Dispatch(pairs, handler):
@@ -287,6 +317,9 @@ def main(argv):
     # turn it off.  Hm.  I think maybe mine should be false.
     # Have to test 2 cases: symlinks and files.
     copy = CopyHandler(dest_base, force=True)
+    return Dispatch(pairs, copy)
+  elif action == 'ln':
+    copy = LinkHandler(dest_base, force=True)
     return Dispatch(pairs, copy)
   else:
     ShellOut(action, pairs, dest_base, extra_argv)

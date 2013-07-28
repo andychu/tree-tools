@@ -70,6 +70,19 @@ test-empty-dir-made() {
   tree $TEST_DIR/copy-4
 }
 
+test-ln() {
+  set -o errexit
+
+  rm -rf $TEST_DIR  # TODO: shell framework needs functions for this
+
+  multi ln $TEST_DIR/ln1 <<EOF
+Auto
+bin
+Package foo
+EOF
+
+  tree $TEST_DIR
+}
 
 "$@"
 
