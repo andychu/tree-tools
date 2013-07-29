@@ -128,7 +128,7 @@ def _MakeLink(target, dest, force):
   except OSError, e:
     print target, dest
     if e.errno == errno.EEXIST:
-      if self.force:
+      if force:
         os.remove(dest)
         os.symlink(target, dest)
       else:
@@ -170,7 +170,7 @@ class CopyHandler(object):
     dest = os.path.join(self.dest_base, rel_dest)
     self.maker.mkdir(os.path.dirname(dest))
 
-    _MakeLink(target, dest, force)
+    _MakeLink(target, dest, self.force)
 
 
 class LinkHandler(object):
