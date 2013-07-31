@@ -286,6 +286,13 @@ def main(argv):
 
   pairs = []
   for line in sys.stdin:
+    # allow comments and blank lines in specs.
+    line = line.strip()
+    if not line:
+      continue
+    if line.startswith('#'):
+      continue
+
     parts = line.split(None, 1)
     if len(parts) == 1:
       src = parts[0]
