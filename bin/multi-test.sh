@@ -29,7 +29,8 @@ EOF
 
   find $TEST_DIR/cp3 | multi cp $TEST_DIR/cp4
 
-  tree _tmp/
+  # TODO: verify that Auto still has executable permissions.  This was a bug.
+  tree -p _tmp/
 }
 
 # This fails because we passed --no-force to override.
@@ -56,7 +57,8 @@ Auto Auto
 Auto
 EOF
 
-  tar --list -z <$TEST_DIR/test.tar.gz
+  # --verbose so that we check permission bits
+  tar --list --verbose -z <$TEST_DIR/test.tar.gz
 }
 
 test-empty-dir-made() {
