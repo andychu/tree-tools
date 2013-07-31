@@ -157,8 +157,9 @@ class CopyHandler(object):
     dest = os.path.join(self.dest_base, rel_dest)
     self.maker.mkdir(os.path.dirname(dest))
 
-    # TODO: mkdir too
-    shutil.copyfile(source, dest)
+    # NOTE: Permission bits are copied, but not stuff like mod time, which is
+    # what we want.
+    shutil.copy(source, dest)
 
   def OnDir(self, source, rel_dest):
     # make the dir
