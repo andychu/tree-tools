@@ -190,6 +190,15 @@ class LinkHandler(object):
     #
     # This lets us do something like 'echo Auto | multi ln some/other/dir'
     # We don't have to specify $PWD/Auto.
+    #
+    # NOTE: Would it be possible to calculate relative symlinks?
+    # Instead of 
+    #
+    # _tmp/poly/dev/treemap -> /home/andy/hg/treemap/_tmp/app
+    #
+    # It would be nicer to have
+    #
+    # _tmp/poly/dev/treemap -> ../../app
 
     source = os.path.abspath(source)
     dest = os.path.join(self.dest_base, rel_dest)
