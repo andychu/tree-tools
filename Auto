@@ -37,7 +37,9 @@ Build() {
   # Everything here goes to stderr, so we don't have to redirect.
   package-manifest | multi tar $CDI_OUT/tree-tools.tar.gz
 
-  poly build doc/
+  # TODO: run CDI in sandbox, then put asciidoc/markdown in a sandbox, then
+  # re-enable this.
+  #poly build doc/
 }
 
 # not called 'test' 
