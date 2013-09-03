@@ -185,6 +185,13 @@ class LinkHandler(object):
     self.force = force
 
   def _Link(self, source, rel_dest):
+    # for symlinks, resolve the symlink target with respect to the current
+    # working directory.
+    #
+    # This lets us do something like 'echo Auto | multi ln some/other/dir'
+    # We don't have to specify $PWD/Auto.
+
+    source = os.path.abspath(source)
     dest = os.path.join(self.dest_base, rel_dest)
     self.maker.mkdir(os.path.dirname(dest))
 
