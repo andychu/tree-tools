@@ -83,6 +83,10 @@ bin
 Package foo
 EOF
 
+  # TODO: use "ftree" and assert output here.  It should have no lines so the
+  # output is easier to type.
+  #
+  # ptree is for processes.
   tree $TEST_DIR
 }
 
