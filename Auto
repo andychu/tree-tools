@@ -16,18 +16,15 @@ multi() {
 package-manifest() {
   # Standalone scripts.
   cat <<EOF
-Package
 bin/py_deps.py bin/py-deps
 bin/hg-info.sh bin/hg-info
 EOF
 
   # Crawl deps.  TODO: docopt.
   PYTHONPATH=.:_tmp/deps/docopt-master py-deps bin.multi
-
-  # Python stub
-  basisc python-stub multi.py >_tmp/multi
-  chmod +x _tmp/multi
-  echo _tmp/multi bin/multi 
+  basisc echo-python-stub multi
+  PYTHONPATH=.:_tmp/deps/docopt-master py-deps bin.ftree
+  basisc echo-python-stub ftree
 
   # Package.stamp
   basisc echo-package-and-stamp tree-tools $CDI_HG_REVISION
