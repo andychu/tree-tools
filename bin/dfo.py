@@ -138,34 +138,33 @@ def _PackTree(dir, outf, indent=0):
     mode = os.lstat(path).st_mode
 
     if stat.S_ISLNK(mode):
-      target = os.readlink(path)
-      #outf.write('%s%s -> %s\n' % (ind, name, target))
+      # contents of the blob is simply the target.
+      obj = os.readlink(path)
 
-      # symlink: checksum
-      obj = target
-
-      # TODO:
       hex = _WriteObj(outf, obj)
-      type = 'link'
+      # In git, a symlink has type "blob" but has flags 120000.  We're using a
+      # separate type.  We only have soft links -- no hard links now.
+      node_type = 'link'
 
     elif stat.S_ISDIR(mode):
       obj = _PackTree(path, outf, indent+1)
       hex = _WriteObj(outf, obj)
-      type = 'tree'
+      node_type = 'tree'
 
     else:
-      # regular file: open it and checksum.
-      #outf.write(ind + name + '\n')
+      # TODO: stream this
       f = open(path)
       obj = f.read()
       f.close()
 
       hex = _WriteObj(outf, obj)
-      type = 'file'
+      node_type = 'blob'
 
-    perms = 'P'
-    rec = (hex, perms, type, name)
-    this_dir.append('%s %s %s %s' % rec)
+    # Git uses a binary format.  And then you can use git cat-file -p to pretty
+    # print it.  I think it's fine just to use text.  No special tools needed.
+    perms = stat.S_IMODE(mode)
+    rec = (perms, node_type, hex, name)
+    this_dir.append('%o %s %s %s' % rec)  # octal perms
 
   # TODO: output an object representing: (type, permissions)
   log('---')
