@@ -2,14 +2,15 @@
 """Serialize/Deserialize a file system tree.
 
 Usage:
-  dfo [options] pack [<dir>...]
-  dfo [options] unpack [<dir>...]
+  dfo [options] pack <dir>
+  dfo [options] unpack <dir>
   dfo [options] verify [<archive>...]
   dfo -h | --help
   dfo --version
 
 Actions:
   pack: read the given directory and output an archive stream to stdout.
+    Does it make sense for this to take multiple dirs, or is that another tool?
   unpack: read archive stream from stdin, and write to the given directory.
   verify: check the integrity by going through checksums.
   id: read the value of a .dfo file?
@@ -37,7 +38,6 @@ import docopt
 import tnet
 
 
-
 def log(msg, *args):
   if msg:
     msg = msg % args
@@ -51,6 +51,9 @@ def log(msg, *args):
 # should there be a sha1 of all of it?
 # footer I think contains debug information -- it's not part of the logical
 # content.  It's out of band debugging information.
+#
+# NOTE: The DFO format does NOT need to be seekable.  That's job is for the
+# file system itself!  Unpack it!  Don't reinvent the file system.
 #
 # or maybe the header should be a file itself?
 # e.g. _dfo_
@@ -154,9 +157,8 @@ def _PackTree(dir, outf, indent=0):
   return dir_obj
 
 
-def PackTree(dir):
-  outf = sys.stdout
-  _PackTree(dir, outf)
+def _UnpackTree(f, dir):
+  pass
 
 
 def main(argv):
@@ -167,10 +169,14 @@ def main(argv):
   # I guess you could run this on plain file:
   # dfo read foo.  And then it could output that?
 
-  dirs = opts['<dir>'] or ['.']
-  for d in dirs:
-    #print d
-    PackTree(d)
+  if opts['pack']:
+    d = opts['<dir>'] or ['.']
+    _PackTree(d, sys.stdout)
+  elif opts['unpack']:
+    _UnpackTree(sys.stdin, opts['<dir>'])
+    print 'unpack'
+  else:
+    raise AssertionError('Invalid action')
 
   return 0
 
