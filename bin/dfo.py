@@ -98,6 +98,24 @@ def log(msg, *args):
 # Does it ever make sense to write symlinks?  To save space?
 # could have dfo write --cas /cas or something.
 
+
+# TODO: obj could be a file too?  Checksum it gradually.
+def _WriteObj(outf, obj):
+  c = hashlib.sha1()
+  c.update(obj)
+  sha1 = c.digest()
+  #log('%r', sha1)
+
+  outf.write(tnet.dumps(obj))
+  outf.write(tnet.dumps(c.hexdigest()))
+
+  # TODO:
+  #Write(outf, obj)
+
+  # should digests be hex?  tnet?
+  # contents first, then digest
+
+
 def _PackTree(dir, outf, indent=0):
   """
   Args:
@@ -122,7 +140,7 @@ def _PackTree(dir, outf, indent=0):
       obj = target
 
       # TODO:
-      Write(outf, obj)
+      _WriteObj(outf, obj)
 
     elif stat.S_ISDIR(mode):
       #outf.write(ind + entry + '/\n')  # trailing slash means dir
@@ -133,6 +151,7 @@ def _PackTree(dir, outf, indent=0):
       # (name, checksum, type, perms)
 
       obj = _PackTree(path, outf, indent+1)
+      _WriteObj(outf, obj)
 
     else:
       # regular file: open it and checksum.
@@ -141,25 +160,10 @@ def _PackTree(dir, outf, indent=0):
       obj = f.read()
       f.close()
 
-      c = hashlib.sha1()
-      c.update(obj)
-      sha1 = c.digest()
-      #log('%r', sha1)
-
-      outf.write(tnet.dumps(obj))
-      outf.write(tnet.dumps(c.hexdigest()))
-
-      # TODO:
-      #Write(outf, obj)
-
-      # should digests be hex?  tnet?
-      # contents first, then digest
-
-
-
+      _WriteObj(outf, obj)
 
   # TODO: output an object representing: (type, permissions)
-  return dir_obj
+  return '\n'.join(dir_obj)
 
 
 def _UnpackTree(f, dir):
