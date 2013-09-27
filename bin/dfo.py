@@ -2,19 +2,31 @@
 """Serialize/Deserialize a file system tree.
 
 Usage:
-  dfo [options] read [<dir>...]
-  dfo [options] write [<dir>...]
+  dfo [options] pack [<dir>...]
+  dfo [options] unpack [<dir>...]
+  dfo [options] verify [<archive>...]
   dfo -h | --help
   dfo --version
 
 Actions:
-  read: read the given directory and output an archive stream to stdout.
-  write: read archive stream from stdin, and write to the given directory.
+  pack: read the given directory and output an archive stream to stdout.
+  unpack: read archive stream from stdin, and write to the given directory.
+  verify: check the integrity by going through checksums.
+  id: read the value of a .dfo file?
 
 Options:
   --indent=INDENT
       Number of spaces to indent.  (or character?)
 """
+# options:
+# pack:
+#   - allow symlinks pointing outside the tree?
+#   - follow symlinks (to /cas)?
+# unpack:
+#   - use cas to unpack?
+#
+# CGI mode?  For dynamically constructing packs?  Probably should just export
+# it as a library.
 
 import hashlib
 import os
@@ -32,6 +44,17 @@ def log(msg, *args):
   print >>sys.stderr, msg
 
 # Format
+#
+# (header, sha1)
+# (content, sha1) records
+# (footer, sha1)
+# should there be a sha1 of all of it?
+# footer I think contains debug information -- it's not part of the logical
+# content.  It's out of band debugging information.
+#
+# or maybe the header should be a file itself?
+# e.g. _dfo_
+#
 #
 # 1/
 #   2/
@@ -67,7 +90,7 @@ def log(msg, *args):
 # Does it ever make sense to write symlinks?  To save space?
 # could have dfo write --cas /cas or something.
 
-def _ReadTree(dir, outf, indent=0):
+def _PackTree(dir, outf, indent=0):
   """
   Args:
     dir: root directory
@@ -89,9 +112,20 @@ def _ReadTree(dir, outf, indent=0):
 
       # symlink: checksum
       obj = target
+
+      # TODO:
+      Write(outf, obj)
+
     elif os.path.isdir(path):
       #outf.write(ind + entry + '/\n')  # trailing slash means dir
-      obj = _ReadTree(path, outf, indent+1)
+
+      # What does this return?  I guess it has checksums of every entry.  It
+      # needs the names.
+      #
+      # (name, checksum, type, perms)
+
+      obj = _PackTree(path, outf, indent+1)
+
     else:
       # regular file: open it and checksum.
       #outf.write(ind + entry + '\n')
@@ -107,6 +141,9 @@ def _ReadTree(dir, outf, indent=0):
       outf.write(tnet.dumps(obj))
       outf.write(tnet.dumps(c.hexdigest()))
 
+      # TODO:
+      #Write(outf, obj)
+
       # should digests be hex?  tnet?
       # contents first, then digest
 
@@ -117,9 +154,9 @@ def _ReadTree(dir, outf, indent=0):
   return dir_obj
 
 
-def ReadTree(dir):
+def PackTree(dir):
   outf = sys.stdout
-  _ReadTree(dir, outf)
+  _PackTree(dir, outf)
 
 
 def main(argv):
@@ -133,7 +170,7 @@ def main(argv):
   dirs = opts['<dir>'] or ['.']
   for d in dirs:
     #print d
-    ReadTree(d)
+    PackTree(d)
 
   return 0
 
