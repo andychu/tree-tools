@@ -7,4 +7,6 @@ this_dir=$(dirname $(readlink -f $0))
 repo_root=$this_dir/..
 deps=$repo_root/_tmp/deps
 
-PYTHONPATH=$repo_root:$deps/docopt-master exec $this_dir/dfo.py "$@"
+# TODO: Use _tmps for tnet library.
+PYTHONPATH=$repo_root:$deps/docopt-master:~/hg/tnet/python \
+  exec $this_dir/dfo.py "$@"
