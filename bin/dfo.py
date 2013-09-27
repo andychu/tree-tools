@@ -21,6 +21,15 @@ import os
 import sys
 
 import docopt
+# TODO:
+import tnet
+
+
+
+def log(msg, *args):
+  if msg:
+    msg = msg % args
+  print >>sys.stderr, msg
 
 # Format
 #
@@ -76,19 +85,33 @@ def _ReadTree(dir, outf, indent=0):
     # This must come FIRST -- a directory can also be a link.
     if os.path.islink(path):
       target = os.readlink(path)
-      outf.write('%s%s -> %s\n' % (ind, entry, target))
+      #outf.write('%s%s -> %s\n' % (ind, entry, target))
 
       # symlink: checksum
       obj = target
     elif os.path.isdir(path):
-      outf.write(ind + entry + '/\n')  # trailing slash means dir
+      #outf.write(ind + entry + '/\n')  # trailing slash means dir
       obj = _ReadTree(path, outf, indent+1)
     else:
       # regular file: open it and checksum.
-      outf.write(ind + entry + '\n')
+      #outf.write(ind + entry + '\n')
       f = open(path)
       obj = f.read()
       f.close()
+
+      c = hashlib.sha1()
+      c.update(obj)
+      sha1 = c.digest()
+      #log('%r', sha1)
+
+      outf.write(tnet.dumps(obj))
+      outf.write(tnet.dumps(c.hexdigest()))
+
+      # should digests be hex?  tnet?
+      # contents first, then digest
+
+
+
 
   # TODO: output an object representing: (type, permissions)
   return dir_obj
