@@ -12,6 +12,7 @@ Options:
 """
 
 import os
+import stat
 import sys
 
 import docopt
@@ -32,16 +33,17 @@ def _ListTree(dir, lines, indent=0):
   ind = indent * '    '
   entries = sorted(os.listdir(dir))
   for entry in entries:
-    # TODO: doing a stat is more efficient
     path = os.path.join(dir, entry)
+    mode = os.lstat(path).st_mode
     # This must come FIRST -- a directory can also be a link.
-    if os.path.islink(path):
+    if stat.S_ISLNK(mode):
       target = os.readlink(path)
       lines.append('%s%s -> %s' % (ind, entry, target))
-    elif os.path.isdir(path):
+    elif stat.S_ISDIR(mode):
       lines.append(ind + entry + '/')  # trailing slash means dir
       _ListTree(path, lines, indent+1)
     else:
+      # TODO: distinguish regular files from sockets, devices, etc.?
       lines.append(ind + entry)
 
 
