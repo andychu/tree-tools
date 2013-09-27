@@ -36,10 +36,10 @@ Options:
 
 import hashlib
 import os
+import stat
 import sys
 
 import docopt
-# TODO:
 import tnet
 
 
@@ -111,10 +111,10 @@ def _PackTree(dir, outf, indent=0):
   entries = sorted(os.listdir(dir))
   dir_obj = []
   for entry in entries:
-    # TODO: doing a stat is more efficient
     path = os.path.join(dir, entry)
-    # This must come FIRST -- a directory can also be a link.
-    if os.path.islink(path):
+    mode = os.lstat(path).st_mode
+
+    if stat.S_ISLNK(mode):
       target = os.readlink(path)
       #outf.write('%s%s -> %s\n' % (ind, entry, target))
 
@@ -124,7 +124,7 @@ def _PackTree(dir, outf, indent=0):
       # TODO:
       Write(outf, obj)
 
-    elif os.path.isdir(path):
+    elif stat.S_ISDIR(mode):
       #outf.write(ind + entry + '/\n')  # trailing slash means dir
 
       # What does this return?  I guess it has checksums of every entry.  It
