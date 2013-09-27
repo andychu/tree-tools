@@ -106,14 +106,11 @@ def _WriteObj(outf, obj):
   sha1 = c.digest()
   #log('%r', sha1)
 
+  # Write out object first.
   outf.write(tnet.dumps(obj))
+  # Then sha1.
   outf.write(tnet.dumps(c.hexdigest()))
-
-  # TODO:
-  #Write(outf, obj)
-
-  # should digests be hex?  tnet?
-  # contents first, then digest
+  return c.hexdigest()  # for printing
 
 
 def _PackTree(dir, outf, indent=0):
@@ -127,43 +124,55 @@ def _PackTree(dir, outf, indent=0):
   """
   ind = indent * '    '
   entries = sorted(os.listdir(dir))
-  dir_obj = []
-  for entry in entries:
-    path = os.path.join(dir, entry)
+
+  # list of (name, sha1, type, perms), sorted by name.
+  # What does this return?  I guess it has checksums of every entry.  It
+  # needs the names.
+  #
+  # (name, checksum, type, perms)
+
+  this_dir = []
+
+  for name in entries:
+    path = os.path.join(dir, name)
     mode = os.lstat(path).st_mode
 
     if stat.S_ISLNK(mode):
       target = os.readlink(path)
-      #outf.write('%s%s -> %s\n' % (ind, entry, target))
+      #outf.write('%s%s -> %s\n' % (ind, name, target))
 
       # symlink: checksum
       obj = target
 
       # TODO:
-      _WriteObj(outf, obj)
+      hex = _WriteObj(outf, obj)
+      type = 'link'
 
     elif stat.S_ISDIR(mode):
-      #outf.write(ind + entry + '/\n')  # trailing slash means dir
-
-      # What does this return?  I guess it has checksums of every entry.  It
-      # needs the names.
-      #
-      # (name, checksum, type, perms)
-
       obj = _PackTree(path, outf, indent+1)
-      _WriteObj(outf, obj)
+      hex = _WriteObj(outf, obj)
+      type = 'tree'
 
     else:
       # regular file: open it and checksum.
-      #outf.write(ind + entry + '\n')
+      #outf.write(ind + name + '\n')
       f = open(path)
       obj = f.read()
       f.close()
 
-      _WriteObj(outf, obj)
+      hex = _WriteObj(outf, obj)
+      type = 'file'
+
+    perms = 'P'
+    rec = (hex, perms, type, name)
+    this_dir.append('%s %s %s %s' % rec)
 
   # TODO: output an object representing: (type, permissions)
-  return '\n'.join(dir_obj)
+  log('---')
+  log('%s', '\n'.join(this_dir))
+  log('---')
+
+  return '\n'.join(this_dir)
 
 
 def _UnpackTree(f, dir):
