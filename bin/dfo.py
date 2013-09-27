@@ -28,6 +28,11 @@ Options:
 #
 # CGI mode?  For dynamically constructing packs?  Probably should just export
 # it as a library.
+#
+# TODO:
+# - implement unpack
+# - round trip it
+# - I guess you can do diff -R
 
 import hashlib
 import os
