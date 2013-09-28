@@ -265,7 +265,7 @@ class Verifier(object):
         perms, type, expected_checksum, name = line.split(' ', 3)
       except ValueError:
         raise RuntimeError('Invalid directory entry %r' % line)
-      print '.', perms, type, expected_checksum, name
+      #print '.', perms, type, expected_checksum, name
       expected.append((name, expected_checksum))
 
     # TODO: Could display a nice diff here and so forth
@@ -275,11 +275,11 @@ class Verifier(object):
     else:
       log('Actual:')
       for n, c in actual:
-        log('%s %s', n, c)
+        log('    %s %s', n, c)
       log('Expected:')
       for n, c in expected:
-        log('%s %s', n, c)
-      raise RuntimeError('Fatal integrity error')
+        log('    %s %s', n, c)
+      raise RuntimeError('Stream integrity error')
 
     self.stack.pop()
     if self.stack:
