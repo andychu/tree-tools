@@ -27,6 +27,33 @@ Options:
 
 from __future__ import with_statement
 
+# SKETCH
+#
+# The goal is to make a directory tree (i.e. output of a build) into a *value*.
+# The value has a name -- its sha1 checksum.
+#
+# DFO is like a cross between git .pack format and tar format.
+#
+# What's wrong with tar format:
+#   - irrelevant file metadata (timestamp, uid, gid etc. don't make sense on
+#     other systems)
+#   - no checksums
+#   - complex implementation, lots of cruft
+#
+# What's wrong with git .pack format:
+#   - more complex.  It is meant to be random access -- this is a stream
+#   - unecessary binary format
+#   - also has some irrelevant file metadata
+#
+# To serialize a tree to a stream, we do a depth-first traversal of the
+# hierarchy, emitting records of type (push dir, pop dir, file, symlink).  The
+# directory entries contain checksums and file permissions, so that the file
+# system metadata is also part of the 'DFO value'.
+#
+# To deserialize, we read the record stream, construct the hierarchy, validate
+# checksums, and change permissions.
+#
+#
 # SPEC (todo: put this in a doc)
 #
 # A DFO stream consists of a sequence of length-prefixed netstring records.
@@ -35,39 +62,39 @@ from __future__ import with_statement
 #
 # Record structure:
 #
-#   header                       magic 8-byte number
-#   (op record, data record)*    a pair for each file
-#   trailer                      root checksum for the tree
+#   header                         magic 8-byte number
+#   (op record, data record)*      a pair for each file
+#   trailer                        root checksum for the tree
 #
 # So there are 2N + 2 records, where N is the number of nodes
 # (files/dirs/symlinks).
 #
-# There are 4 types of op record:
+# The 4 types of pair look like this:
 #
-#   '> name' ''
-#   'F name' [file contents]
-#   'L name' [symlink target]
-#   '< name' [dir contents]
+#   '> name' ''                    push a directory
+#   'F name' [file contents]       file
+#   'L name' [symlink target]      symlink
+#   '< name' [dir contents]        pop a directory, and specify its contents
 #
-# Notice:
+# The command is a single char, one of > < F L.  The 'name' may have
+# spaces.
 #
-#   - The command is a single char, one of > < F L.  The 'name' may have
-#   spaces.
-#   - A dir is represented by a > < pair.  Files/symlinks are single nodes.
-#   - The contents of a dir (<) entry is a text file.  It looks like:
+# A dir is represented by a > < pair.  Files/symlinks are single nodes.
 #
-#     perms type checksum name
+# The contents of a dir (<) entry is a text file.  It is a series of lines as
+# follows:
 #
-#   - perms: 'x' or '-', if the (regular) file is executable
-#   - type: F L or D
-#   - checksum: hex representation of sha1 checksum
-#   - name: filename (not path).  May contain spaces.
+#   perms type checksum name
+#
+# perms: 'x' or '-', if the (regular) file is executable
+# type: F L or D (the type of node)
+# checksum: hex representation of sha1 checksum
+# name: filename (not path).  May contain spaces.  Cannot contain newlines.
 #
 # Redundancies:
 #
 #   The name and node type are repeated.  This is necessary so that BOTH
 #   packing and unpacking are single-pass algorithms.
-
 
 import errno
 import hashlib
@@ -102,7 +129,8 @@ def _WritePair(outf, cmd, name):
 
 
 def _PackTree(prefix, dir, outf):
-  """
+  """Recursively serialize a tree to the given stream.
+
   Args:
     prefix: root directory
     dir: current dir
