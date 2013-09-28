@@ -39,7 +39,7 @@ from __future__ import with_statement
 #
 # - implement verification, error checking
 #   - the verify command should use the Verifier class
-# - implement streaming of files
+# - implement streaming of files on unpacking
 # - tests
 #   - I guess you can do diff -R
 # - condense the format to 2-tuples
@@ -62,10 +62,10 @@ def log(msg, *args):
   print >>sys.stderr, msg
 
 
-# TODO: obj could be a file too?  Checksum it gradually.
-def _WriteObj(outf, name, obj):
+# TODO: change to a single pair
+def _WritePair(outf, cmd, name):
+  outf.write(tnet.dump_line(cmd))
   outf.write(tnet.dump_line(name))
-  outf.write(tnet.dump_line(obj))
 
 
 # FORMAT
@@ -95,6 +95,8 @@ def _PackTree(prefix, dir, outf):
   Returns:
     Byte string representing the directory
   """
+  chunk_size = 1  # 1024 * 1024  # 1 MB -- make this a flag for testing?
+
   this_dir = []
 
   full_dir = os.path.join(prefix, dir)
@@ -105,6 +107,8 @@ def _PackTree(prefix, dir, outf):
     path = os.path.join(prefix, rel_path)
     mode = os.lstat(path).st_mode
 
+    hex = None
+
     if stat.S_ISLNK(mode):
       # contents of the blob is simply the target.
       obj = os.readlink(path)
@@ -112,38 +116,46 @@ def _PackTree(prefix, dir, outf):
       # In git, a symlink has type "blob" but has flags 120000.  We're using a
       # separate type.  We only have soft links -- no hard links now.
       node_type = 'L'
-      outf.write(tnet.dump_line('L'))  # symlink
-      _WriteObj(outf, name, obj)
+      _WritePair(outf, node_type, name)
+      outf.write(tnet.dump_line(obj))
 
     elif stat.S_ISDIR(mode):
-      outf.write(tnet.dump_line('>'))  # push
-      outf.write(tnet.dump_line(name))
+      _WritePair(outf, '>', name)
       outf.write(tnet.dump_line(''))  # no contents
 
       obj = _PackTree(prefix, rel_path, outf)
 
-      outf.write(tnet.dump_line('<'))  # pop
-      _WriteObj(outf, name, obj)
+      _WritePair(outf, '<', '')  # no name
+      outf.write(tnet.dump_line(obj))
 
-      # pop here: write out checksums, permissions, type
       node_type = 'D'
 
     elif stat.S_ISREG(mode):
-      # TODO: stream this
-      f = open(path)
-      obj = f.read()
-      f.close()
-
       node_type = 'F'
-      outf.write(tnet.dump_line('F'))  # file
-      _WriteObj(outf, name, obj)
+      _WritePair(outf, node_type, name)
+
+      # stream regular files so we don't take up too much memory.
+      checksum = hashlib.sha1()
+      length = os.path.getsize(path)
+      outf.write('%d:' % length)  # netstring prefix
+      with open(path) as f:
+        while True:
+          chunk = f.read(chunk_size)
+          if not chunk:  # EOF
+            break
+          outf.write(chunk)
+          checksum.update(chunk)  # checksum
+
+      outf.write('\n')  # netstring suffix
+      hex = checksum.hexdigest()
 
     else:
       raise RuntimeError("Can't serialize %r, of type %o" % (name, mode))
 
-    c = hashlib.sha1()
-    c.update(obj)
-    hex = c.hexdigest()
+    if not hex:
+      c = hashlib.sha1()
+      c.update(obj)
+      hex = c.hexdigest()
 
     # Git uses a binary format.  And then you can use git cat-file -p to pretty
     # print it.  I think it's fine just to use text.  No special tools needed.
@@ -171,15 +183,14 @@ def PackTree(d, outf):
   # TODO: header?  Or maybe the trailer is all I need.
   # Header is where you would put a version number.
 
-  # to balance < and >, the top level has no name.
-  outf.write(tnet.dump_line('>'))  # push
-  outf.write(tnet.dump_line(''))
+  # To balance < and >, the top level has no name.
+  _WritePair(outf, '>', '')
   outf.write(tnet.dump_line(''))  # no contents
 
   obj = _PackTree(d, '', outf)
 
-  outf.write(tnet.dump_line('<'))  # last record: current dir
-  _WriteObj(outf, '', obj)
+  _WritePair(outf, '<', '')  # no name
+  outf.write(tnet.dump_line(obj))
 
   # Write out final checksum in trailer.
   c = hashlib.sha1()
