@@ -33,6 +33,8 @@ from __future__ import with_statement
 #   - follow symlinks (to /cas)?
 # unpack:
 #   - use cas to unpack?
+# both:
+#   - --progress like tar --checkpoint=1000
 #
 # CGI mode?  For dynamically constructing packs?  Probably should just export
 # it as a library.
@@ -63,6 +65,11 @@ import sys
 
 import docopt
 import tnet
+
+
+# Read/write large files in chunks of this size, so we dont' use too much
+# memory.
+CHUNK_SIZE = 1  # 1024 * 1024  # 1 MB 
 
 
 def log(msg, *args):
@@ -104,7 +111,7 @@ def _PackTree(prefix, dir, outf):
   Returns:
     Byte string representing the directory
   """
-  chunk_size = 1  # 1024 * 1024  # 1 MB -- make this a flag for testing?
+  chunk_size = CHUNK_SIZE  # make this a flag for testing?
 
   this_dir = []
   this_count = 0
@@ -224,6 +231,10 @@ def _MakeOneDir(dir):
 class Verifier(object):
   """Verifies that content has the expected checksums."""
 
+  # Verifier can also track:
+  # - stack too deep (1000)
+  # - too many pops?
+
   def __init__(self):
     self.current = None  # list of actual entries in the current dir
     self.stack = []  # list of lists of actuals
@@ -247,7 +258,12 @@ class Verifier(object):
     # - chmod
     # - verify checksums
 
+    actual = self.current
+    print 'A', actual
+    print 'E', expected
     self.stack.pop()
+    if self.stack:
+      self.current = self.stack[-1]
 
   def OnEntry(self, entry):
     """Call this on each entry in a dir."""
@@ -261,17 +277,6 @@ def _UnpackTree(in_file, dir):
 
   #log('chdir %s', dir)
   os.chdir(dir)  # everything is relative to this dir
-
-  # we verify one dir at at time
-  # (actual name, actual checksum) pairs.
-  # this needs a cursor?
-  # Verifier()
-  #   Push()
-  #   OnEntry()  # add actual
-  #   Pop()  # get expected, then verifies it
-  #
-  # Verifier can also track:
-  # - stack too deep (1000)
 
   v = Verifier()
 
@@ -291,11 +296,15 @@ def _UnpackTree(in_file, dir):
       raise RuntimeError('Expected node name, got EOF')
     #print repr(name)
 
+    # TODO: read length from stream.  Then read in CHUNK_SIZE chunks.  And checksum.
+    c = hashlib.sha1()
     try:
       contents = tnet.readbytes(in_file)
     except EOFError:
       raise RuntimeError('Expected contents, got EOF')
     #print repr(contents)
+    c.update(contents)
+    actual_checksum = c.hexdigest()
 
     if command == '>':
       if name:
@@ -312,7 +321,9 @@ def _UnpackTree(in_file, dir):
 
     elif command == '<':
       #log('<')
-      v.Pop(contents)
+      v.Pop(contents)  # pass expected checksums and permissions to verify
+      v.OnEntry(actual_checksum)  # add this dir entry
+
       level -= 1
       if level == 0:
         #log('DONE')
@@ -328,7 +339,7 @@ def _UnpackTree(in_file, dir):
       with open(name, 'w') as f:
         f.write(contents)
 
-      v.OnEntry(contents)
+      v.OnEntry(actual_checksum)
 
     elif command == 'L':
       #log('L %s', name)
@@ -338,7 +349,7 @@ def _UnpackTree(in_file, dir):
         if e.errno != errno.EEXIST:
           raise RuntimeError('Error making symlink %r: %s' % (name, e))
 
-      v.OnEntry(contents)
+      v.OnEntry(actual_checksum)
 
     else:
       raise RuntimeError('Invalid command %r' % command)
