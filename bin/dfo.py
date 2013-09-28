@@ -36,9 +36,14 @@ from __future__ import with_statement
 # it as a library.
 #
 # TODO:
-# - implement unpack
-# - round trip it
-# - I guess you can do diff -R
+#
+# - implement verification, error checking
+# - implement streaming of files
+# - tests
+#   - I guess you can do diff -R
+# - condense the format to 2-tuples
+# - write documentation about the format (doc/dfo.txt)
+
 
 import errno
 import hashlib
@@ -55,73 +60,29 @@ def log(msg, *args):
     msg = msg % args
   print >>sys.stderr, msg
 
-# Format
-#
-# (header, sha1)
-# (content, sha1) records
-# (footer, sha1)
-# should there be a sha1 of all of it?
-# footer I think contains debug information -- it's not part of the logical
-# content.  It's out of band debugging information.
-#
-# NOTE: The DFO format does NOT need to be seekable.  That's job is for the
-# file system itself!  Unpack it!  Don't reinvent the file system.
-#
-# or maybe the header should be a file itself?
-# e.g. _dfo_
-#
-#
-# 1/
-#   2/
-#     3
-#     4
-#   5/
-#     6/
-#       7
-#   8
-#
-# Dirs: 1, 2, 5, 6
-# files: 3 4 7 8
-#
-# Algorithm: write stream
-#
-# listdir
-# the problem really is streaming
-# can I do it in parallel?  disks aren't really parallel.  It's disk-bound, not
-# CPU bound.  would only make sense if you actually spanned disks.
-#
-# Side note: the natural situation of a tree, for maximum read/write
-# throughput, would be to spread it out on multiple disks.  shard it.  may be a
-# cool trick.
-#
-# issue: don't know the parent checksum until you have written the child.  You
-# could do that easily.  Just keep it in memory.
-#
-# Then the problem is that you can't decompress it.  You could have "hints"?
-#
-# (sha1, path, contents)
-# (sha1, path, contents)
-#
-# Does it ever make sense to write symlinks?  To save space?
-# could have dfo write --cas /cas or something.
-
 
 # TODO: obj could be a file too?  Checksum it gradually.
 def _WriteObj(outf, name, obj):
-  #log('%r', sha1)
-
-  # Write out path.  This is technically extraneous, but makes unpacking
-  # faster.  We know where to put it, rather than having to write it out to a
-  # tmp file, and then move it when we get its parent dir entry.
-  #
-  # Use dump_line (tag '\n') so it's a little more human-parseable.
-  #
-  # We are fixing the format to (path, contents, checksum) here, but additional
-  # file metadata could be put in the dir formats?  (excluding the root).
-
   outf.write(tnet.dump_line(name))
   outf.write(tnet.dump_line(obj))
-  # Then sha1.
+
+
+# FORMAT
+#
+# (PUSH, name, '')
+# (FILE, name, contents)
+# (LINK, name, contents)
+# (POP, '', contents)  # contents contain permissions, checksums
+#
+# So dir is PUSH/POP.  Files/symlinks are single nodes.
+#
+# Dir looks like:
+#
+# PERMS TYPE CHECKSUM NAME
+# (type is redundant, but you wouldn't want changing a file to a symlink not
+# to change the dir checksum)
+#
+# then TRAILER containers the overall checksum?  No perms.
 
 
 def _PackTree(prefix, dir, outf, indent=0):
@@ -134,34 +95,6 @@ def _PackTree(prefix, dir, outf, indent=0):
     Byte string representing the directory
   """
   ind = indent * '    '
-
-  full_dir = os.path.join(prefix, dir)
-  entries = sorted(os.listdir(full_dir))
-
-  # list of (name, sha1, type, perms), sorted by name.
-  # What does this return?  I guess it has checksums of every entry.  It
-  # needs the names.
-  #
-  # (name, checksum, type, perms)
-
-
-  # list of records
-  # (TYPE, name, checksum)
-
-  # (PUSH, name, '')
-  # (FILE, name, contents)
-  # (LINK, name, contents)
-  # (POP, '', contents)  # contents contain permissions, checksums
-  #
-  # So dir is PUSH/POP.  Files/symlinks are single nodes.
-  #
-  # Dir looks like:
-  #
-  # PERMS TYPE CHECKSUM NAME
-  # (type is redundant, but you wouldn't want changing a file to a symlink not
-  # to change the dir checksum)
-  #
-  # then TRAILER containers the overall checksum?  No perms.
 
   this_dir = []
 
@@ -216,11 +149,6 @@ def _PackTree(prefix, dir, outf, indent=0):
     rec = (perms, node_type, hex, name)
     this_dir.append('%o %s %s %s' % rec)  # octal perms
 
-  # TODO: output an object representing: (type, permissions)
-  #log('---')
-  #log('%s', '\n'.join(this_dir))
-  #log('---')
-
   return '\n'.join(this_dir) + '\n'
 
 
@@ -240,8 +168,6 @@ def PackTree(d, outf):
 
   # TODO: header?  Or maybe the trailer is all I need.
   # Header is where you would put a version number.
-  # Do you need the total number of records?
-  # It is 2 * (#files) + 1 + 1
 
   # to balance < and >, the top level has no name.
   outf.write(tnet.dump_line('>'))  # push
@@ -262,7 +188,6 @@ def PackTree(d, outf):
 
   # TODO: put other stuff here?  stamp?  I think stamps can go in internal
   # files.
-
   node_count = 0  # TODO
   log('checksum of %d files: %s', node_count, hex)
 
@@ -275,6 +200,7 @@ def _MakeOneDir(dir):
       raise
 
 
+# TODO: Should be Pop()
 def _FinishDir(contents):
   """chmod and verify.
 
@@ -307,6 +233,9 @@ def _UnpackTree(in_file, dir):
   #   Push()
   #   OnEntry()  # add actual
   #   Pop()  # get expected, then verifies it
+  #
+  # Verifier can also track:
+  # - stack too deep (1000)
 
   to_verify = []
 
