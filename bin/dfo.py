@@ -310,10 +310,9 @@ def _UnpackTree(in_file, dir):
 
   to_verify = []
 
-  # TODO: better termination condition?
-  #
-  # after unpacking, we should print the final checksum as the only thing on
-  # stdout?
+  # The last record is always the last <, where we return to 0.
+  level = 0
+  
   while True:
     try:
       command = tnet.readbytes(in_file)
@@ -340,6 +339,7 @@ def _UnpackTree(in_file, dir):
         os.chdir(name)
       else:
         log('BEGIN')
+      level += 1
       #to_verify.append([])
 
     elif command == '<':
@@ -349,6 +349,10 @@ def _UnpackTree(in_file, dir):
       # - verify checksums
       log('<')
       _FinishDir(contents)
+      level -= 1
+      if level == 0:
+        log('DONE')
+        break
 
       # NOTE: special last case: if you're at /, this will just put you back at
       # /?
@@ -370,9 +374,12 @@ def _UnpackTree(in_file, dir):
     else:
       raise RuntimeError('Invalid command %r' % command)
 
-  # TODO: how to deal with the last '.' record in unpack?
+  try:
+    root_checksum = tnet.readbytes(in_file)
+  except EOFError:
+    raise RuntimeError('Expected root checksum, got EOF')
 
-  log('done unpack')
+  log('%s ok', root_checksum)
 
 
 def main(argv):
