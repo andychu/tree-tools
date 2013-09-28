@@ -27,23 +27,67 @@ Options:
 
 from __future__ import with_statement
 
+# SPEC (todo: separate into a doc)
+#
+# A DFO stream consists of a sequence of length-prefixed netstring records.
+# Netstrings end with '\n' rather than ',' so that streams can be inspected
+# easily with text tools.
+#
+# Record structure:
+#
+#   header                       magic 8-byte number
+#   (op record, data record)*    a pair for each file
+#   trailer                      root checksum for the tree
+#
+# So there are 2N + 2 records, where N is the number of nodes
+# (files/dirs/symlinks).
+#
+# There are 4 types of op record:
+#
+#   '> name' ''
+#   'F name' [file contents]
+#   'L name' [symlink target]
+#   '< name' [dir contents]
+#
+# Notice:
+#
+#   - The command is a single char, one of > < F L.  The 'name' may have
+#   spaces.
+#   - A dir is represented by a > < pair.  Files/symlinks are single nodes.
+#   - The contents of a dir (<) entry is a text file.  It looks like:
+#
+#     perms type checksum name
+#
+#   - perms: 'x' or '-', if the (regular) file is executable
+#   - type: F L or D
+#   - checksum: hex representation of sha1 checksum
+#   - name: filename (not path).  May contain spaces.
+#
+# Redundancies:
+#
+#   The name and node type are repeated.  This is necessary so that BOTH
+#   packing and unpacking are single-pass algorithms.
+
+
+# NOTES
+#
 # other actions
 #   - unpack-content?  use sha1-named files
 #   - index: create index of sha1.  for negotiation when transferring?
-
+#
 # options:
-# pack:
-#   - allow symlinks pointing outside the tree?
-#   - follow symlinks (to /cas)?
-# unpack:
-#   - use cas to unpack?
-# both:
-#   - --progress like tar --checkpoint=1000
+#   pack:
+#     - allow symlinks pointing outside the tree?
+#     - follow symlinks (to /cas)?
+#   unpack:
+#     - use cas to unpack?
+#   both:
+#     - --progress like tar --checkpoint=1000
 #
 # CGI mode?  For dynamically constructing packs?  Probably should just export
 # it as a library.
 #
-# TODO:
+# TODO
 #
 # - figure out the algorithm for reading the trailer.
 #
@@ -54,6 +98,7 @@ from __future__ import with_statement
 # - tests
 #   - I guess you can do diff -R
 #   - compare in size vs tar
+#   - compare in performance as well
 #
 # - package it
 # - name it (kar?)
@@ -91,24 +136,6 @@ def _WritePair(outf, cmd, name):
   """Write a 'cmd' pair in length-prefixed netstring format."""
   s = '%s %s' % (cmd, name)
   outf.write(tnet.dump_line(s))
-
-
-# FORMAT
-#
-# (PUSH, name, '')
-# (FILE, name, contents)
-# (LINK, name, contents)
-# (POP, '', contents)  # contents contain permissions, checksums
-#
-# So dir is PUSH/POP.  Files/symlinks are single nodes.
-#
-# Dir looks like:
-#
-# PERMS TYPE CHECKSUM NAME
-# (type is redundant, but you wouldn't want changing a file to a symlink not
-# to change the dir checksum)
-#
-# then TRAILER containers the overall checksum?  No perms.
 
 def _PackTree(prefix, dir, outf):
   """
@@ -188,29 +215,22 @@ def _PackTree(prefix, dir, outf):
       c.update(obj)
       checksum = c.hexdigest()
 
-    # Git uses a binary format.  And then you can use git cat-file -p to pretty
-    # print it.  I think it's fine just to use text.  No special tools needed.
-    perms = stat.S_IMODE(mode)
-
     # We ONLY care about the user's execute bit.  We have no concept of 'group'
     # and 'other' permissions.  We also don't care if a file is read-only --
     # that is controlled at a higher layer (per directory, not per file!).
+    perms = stat.S_IMODE(mode)
     if node_type == 'F' and perms & stat.S_IXUSR:
       p = 'x' 
     else:
       p = '-'
+
+    # Git uses a binary format.  And then you can use git cat-file -p to pretty
+    # print it.  I think it's fine just to use text.  No special tools needed.
     rec = (p, node_type, checksum, name)
     this_dir.append('%s %s %s %s' % rec)  # octal perms
 
   return '\n'.join(this_dir) + '\n', this_count
 
-
-# Consider '> name' ''
-#          'F name' contents
-#          'L name' contents
-#          '< '     contents
-#
-# The 'command' is the first two chars.
 
 def PackTree(d, outf):
   """Top level helper."""
@@ -243,14 +263,6 @@ def PackTree(d, outf):
   log('checksum of %d nodes: %s', node_count, checksum)
 
 
-def _MakeOneDir(dir):
-  try:
-    return os.mkdir(dir)
-  except OSError, e:
-    if e.errno != errno.EEXIST:
-      raise
-
-
 class Verifier(object):
   """Verifies that content has the expected checksums."""
 
@@ -270,14 +282,11 @@ class Verifier(object):
   def Pop(self, dir_obj):
     """Call on closing dir ('<' command).
 
+    Verifies checksums, and also chmods the right files.
+
     Raises:
       RuntimeError: if there is a verification error, or other I/O error.
     """
-    # TODO:
-    # - parse line
-    # - chmod
-    # - verify checksums
-
     exec_mask = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH  # x bit
 
     expected = []
@@ -288,7 +297,6 @@ class Verifier(object):
         exec_bit, type, expected_checksum, name = line.split(' ', 3)
       except ValueError:
         raise RuntimeError('Invalid directory entry %r' % line)
-      #print '.', perms, type, expected_checksum, name
       expected.append((name, expected_checksum))
 
       if exec_bit == 'x':
@@ -321,12 +329,18 @@ class Verifier(object):
     self.current.append((name, actual_checksum))
 
 
+def _MakeOneDir(dir):
+  try:
+    return os.mkdir(dir)
+  except OSError, e:
+    if e.errno != errno.EEXIST:
+      raise
+
+
 def _UnpackTree(in_file, dir):
   # I think we should only make one level -- not mkdir -p.
-  #log('making %s', dir)
   _MakeOneDir(dir)
 
-  #log('chdir %s', dir)
   os.chdir(dir)  # everything is relative to this dir
 
   v = Verifier()
@@ -346,7 +360,6 @@ def _UnpackTree(in_file, dir):
       op = tnet.readbytes(in_file)
     except EOFError:
       break  # no more
-    #log('%r', command)
 
     try:
       command, name = op.split(' ', 1)
@@ -359,7 +372,6 @@ def _UnpackTree(in_file, dir):
       contents = tnet.readbytes(in_file)
     except EOFError:
       raise RuntimeError('Expected contents, got EOF')
-    #print repr(contents)
     c.update(contents)
     actual_checksum = c.hexdigest()
 
@@ -413,7 +425,7 @@ def _UnpackTree(in_file, dir):
 def main(argv):
   """Returns an exit code."""
 
-  opts = docopt.docopt(__doc__, version='ftree 0.1')
+  opts = docopt.docopt(__doc__, version='dfo 0.1')
 
   # I guess you could run this on plain file:
   # dfo read foo.  And then it could output that?
