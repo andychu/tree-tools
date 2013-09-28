@@ -182,8 +182,16 @@ def _PackTree(prefix, dir, outf):
     # Git uses a binary format.  And then you can use git cat-file -p to pretty
     # print it.  I think it's fine just to use text.  No special tools needed.
     perms = stat.S_IMODE(mode)
-    rec = (perms, node_type, hex, name)
-    this_dir.append('%o %s %s %s' % rec)  # octal perms
+
+    # We ONLY care about the user's execute bit.  We have no concept of 'group'
+    # and 'other' permissions.  We also don't care if a file is read-only --
+    # that is controlled at a higher layer (per directory, not per file!).
+    if node_type == 'F' and perms & stat.S_IXUSR:
+      p = 'x' 
+    else:
+      p = '-'
+    rec = (p, node_type, hex, name)
+    this_dir.append('%s %s %s %s' % rec)  # octal perms
 
   return '\n'.join(this_dir) + '\n', this_count
 
@@ -257,16 +265,26 @@ class Verifier(object):
     # - chmod
     # - verify checksums
 
+    exec_mask = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH  # x bit
+
     expected = []
     for line in dir_obj.splitlines():
       # split on single space, not whitespace, so we don't accept multiple
       # spaces, etc.  There's no reason to be more ambiguous than necessary.
       try:
-        perms, type, expected_checksum, name = line.split(' ', 3)
+        exec_bit, type, expected_checksum, name = line.split(' ', 3)
       except ValueError:
         raise RuntimeError('Invalid directory entry %r' % line)
       #print '.', perms, type, expected_checksum, name
       expected.append((name, expected_checksum))
+
+      if exec_bit == 'x':
+        mode = os.lstat(name).st_mode
+        os.chmod(name, mode | exec_mask)  # add 3 x bits
+      elif exec_bit == '-':
+        pass
+      else:
+        raise RuntimeError('Invalid exec bit %r' % exec_bit)
 
     # TODO: Could display a nice diff here and so forth
     actual = self.current
