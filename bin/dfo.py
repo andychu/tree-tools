@@ -246,21 +246,19 @@ class Verifier(object):
     self.current = []
     self.stack.append(self.current)
 
-  def Pop(self, expected):
+  def Pop(self, dir_obj):
     """Call on closing dir ('<' command).
 
     Raises:
       RuntimeError: if something doesn't match.
     """
     # TODO:
-    # - compared expected vs self.current
-
-    # TODO:
     # - parse line
     # - chmod
     # - verify checksums
 
-    for line in expected.splitlines():
+    expected = []
+    for line in dir_obj.splitlines():
       # split on single space, not whitespace, so we don't accept multiple
       # spaces, etc.  There's no reason to be more ambiguous than necessary.
       try:
@@ -268,10 +266,21 @@ class Verifier(object):
       except ValueError:
         raise RuntimeError('Invalid directory entry %r' % line)
       print '.', perms, type, expected_checksum, name
+      expected.append((name, expected_checksum))
 
+    # TODO: Could display a nice diff here and so forth
     actual = self.current
-    print 'A', actual
-    #print 'E', expected
+    if expected == actual:
+      log('Verified %d entries', len(expected))
+    else:
+      log('Actual:')
+      for n, c in actual:
+        log('%s %s', n, c)
+      log('Expected:')
+      for n, c in expected:
+        log('%s %s', n, c)
+      raise RuntimeError('Fatal integrity error')
+
     self.stack.pop()
     if self.stack:
       self.current = self.stack[-1]
