@@ -29,12 +29,14 @@ pack() {
 }
 
 unpack() {
-  local out=_tmp/unpack2
+  local out=_tmp/unpack
   rm -rf $out
   cat _tmp/foo.dfo | bin/dfo unpack $out
   echo
 
   bin/ftree $out
+  tree -p _tmp/pack
+  tree -p $out
 }
 
 "$@"
