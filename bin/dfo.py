@@ -90,6 +90,11 @@ def _WritePair(outf, cmd, name):
   outf.write(tnet.dump_line(name))
 
 
+def _WriteChunk(outf, chunk):
+  """Write a byte string in length-prefixed netstring format."""
+  outf.write(tnet.dump_line(chunk))
+
+
 # FORMAT
 #
 # (PUSH, name, '')
@@ -140,7 +145,7 @@ def _PackTree(prefix, dir, outf):
       # separate type.  We only have soft links -- no hard links now.
       node_type = 'L'
       _WritePair(outf, node_type, name)
-      outf.write(tnet.dump_line(obj))
+      _WriteChunk(outf, obj)
       this_count += 1
 
     elif stat.S_ISREG(mode):  # file
@@ -165,7 +170,7 @@ def _PackTree(prefix, dir, outf):
 
     elif stat.S_ISDIR(mode):  # directory
       _WritePair(outf, '>', name)
-      outf.write(tnet.dump_line(''))  # no contents
+      _WriteChunk(outf, '')  # no contents
 
       obj, node_count = _PackTree(prefix, rel_path, outf)  # recurse
       this_count += node_count + 1  # +1 for yourself
@@ -173,7 +178,7 @@ def _PackTree(prefix, dir, outf):
       # REDUNDANT name for extra integrity (and easier parsing).  Repeating
       # every dir name twice isn't significant size overhead in most cases.
       _WritePair(outf, '<', name)
-      outf.write(tnet.dump_line(obj))
+      _WriteChunk(outf, obj)
 
       node_type = 'D'
 
@@ -218,23 +223,23 @@ def PackTree(d, outf):
   # First record is always '> .', and last one is always '< .'.  Period is not
   # a valid dir name, so it can be used.
   _WritePair(outf, '>', '.')
-  outf.write(tnet.dump_line(''))  # no contents
+  _WriteChunk(outf, '')  # no contents
 
   obj, node_count = _PackTree(d, '', outf)
 
   _WritePair(outf, '<', '.')
-  outf.write(tnet.dump_line(obj))
+  _WriteChunk(outf, obj)
 
   # Write out final checksum in trailer.
   c = hashlib.sha1()
   c.update(obj)
   checksum = c.hexdigest()
 
-  outf.write(tnet.dump_line(checksum))  # last record: current dir
+  _WriteChunk(outf, checksum)  # last record: current dir
 
   # TODO: put other stuff in the trailer?  stamp?  I think stamps can go in
   # internal files.
-  log('checksum of %d nodes: %s', node_count, checksums)
+  log('checksum of %d nodes: %s', node_count, checksum)
 
 
 def _MakeOneDir(dir):
@@ -265,7 +270,7 @@ class Verifier(object):
     """Call on closing dir ('<' command).
 
     Raises:
-      RuntimeError: if something doesn't match.
+      RuntimeError: if there is a verification error, or other I/O error.
     """
     # TODO:
     # - parse line
@@ -311,8 +316,8 @@ class Verifier(object):
       self.current = self.stack[-1]
 
   def OnEntry(self, name, actual_checksum):
-    """Call this on each entry in a dir."""
-    self.current.append((name, actual_checksum))  # actual entry
+    """Call this on each ACTUAL entry in a dir."""
+    self.current.append((name, actual_checksum))
 
 
 def _UnpackTree(in_file, dir):
@@ -371,15 +376,13 @@ def _UnpackTree(in_file, dir):
         os.chdir('..')
 
     elif command == 'F':
-      #log('F %s', name)
-      # TODO: stream it
+      # TODO: stream this.
       with open(name, 'w') as f:
         f.write(contents)
 
       v.OnEntry(name, actual_checksum)
 
     elif command == 'L':
-      #log('L %s', name)
       try:
         os.symlink(contents, name)
       except OSError, e:
@@ -396,7 +399,6 @@ def _UnpackTree(in_file, dir):
   except EOFError:
     raise RuntimeError('Expected root checksum, got EOF')
 
-  #log('%s ok', root_checksum)
   # if we get a checksum on stdout, that means it's OK.
   print root_checksum
 
