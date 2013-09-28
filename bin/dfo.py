@@ -192,6 +192,13 @@ def _PackTree(prefix, dir, outf, indent=0):
   return '\n'.join(this_dir) + '\n'
 
 
+def PackTree(d, outf):
+  """Top level helper."""
+  obj = _PackTree(d, '', outf)
+  # write the final entry and checksum.
+  _WriteObj(outf, '', obj)
+
+
 def _MakeOneDir(dir):
   try:
     return os.mkdir(dir)
@@ -274,9 +281,7 @@ def main(argv):
   if opts['pack']:
     d = opts['<dir>'] or ['.']
     outf = sys.stdout
-    obj = _PackTree(d, '', outf)
-    # write the final entry and checksum.
-    _WriteObj(outf, '', obj)
+    PackTree(d, outf)
 
   elif opts['unpack']:
     _UnpackTree(sys.stdin, opts['<dir>'])
