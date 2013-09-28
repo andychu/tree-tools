@@ -217,8 +217,11 @@ def _PackTree(prefix, dir, outf):
 def PackTree(d, outf):
   """Top level helper."""
 
-  # TODO: header?  Or maybe the trailer is all I need.
-  # Header is where you would put a version number.
+  # This is an 8 byte magic string: '5:dfo--\n'.  Can be used by 'file' to
+  # identify a DFO stream.
+  # We don't have any other info in the header now.  That could be addeed by
+  # using 'dfo2-'?  Hopefully we won't need it.
+  _WriteChunk(outf, 'dfo--')
 
   # First record is always '> .', and last one is always '< .'.  Period is not
   # a valid dir name, so it can be used.
@@ -332,6 +335,13 @@ def _UnpackTree(in_file, dir):
 
   # The last record is always the last <, where we return to 0.
   level = 0
+
+  try:
+    header = tnet.readbytes(in_file)
+  except EOFError:
+    raise RuntimeError('Expected DFO header, got EOF')
+  if header != 'dfo--':
+    raise RuntimeError("Expected 'dfo--' header, got %r" % header)
   
   while True:
     try:
