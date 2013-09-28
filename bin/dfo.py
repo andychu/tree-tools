@@ -4,8 +4,8 @@
 Usage:
   dfo [options] pack <dir>
   dfo [options] unpack <dir>
-  dfo [options] list [<archive>...]
   dfo [options] verify [<archive>...]
+  dfo [options] list [<archive>...]
   dfo -h | --help
   dfo --version
 
@@ -19,8 +19,8 @@ Actions:
     that's at the end.  do I need a reverse offset at the end?
 
 Options:
-  --indent=INDENT
-      Number of spaces to indent.  (or character?)
+  --verbose=VERBOSE
+      Show verbose logging.
 """
 
 from __future__ import with_statement
@@ -38,6 +38,7 @@ from __future__ import with_statement
 # TODO:
 #
 # - implement verification, error checking
+#   - the verify command should use the Verifier class
 # - implement streaming of files
 # - tests
 #   - I guess you can do diff -R
@@ -84,19 +85,20 @@ def _WriteObj(outf, name, obj):
 #
 # then TRAILER containers the overall checksum?  No perms.
 
-
-def _PackTree(prefix, dir, outf, indent=0):
+def _PackTree(prefix, dir, outf):
   """
   Args:
-    dir: root directory
+    prefix: root directory
+    dir: current dir
     outf: stream to decompress to
 
   Returns:
     Byte string representing the directory
   """
-  ind = indent * '    '
-
   this_dir = []
+
+  full_dir = os.path.join(prefix, dir)
+  entries = sorted(os.listdir(full_dir))
 
   for name in entries:
     rel_path = os.path.join(dir, name)
@@ -118,7 +120,7 @@ def _PackTree(prefix, dir, outf, indent=0):
       outf.write(tnet.dump_line(name))
       outf.write(tnet.dump_line(''))  # no contents
 
-      obj = _PackTree(prefix, rel_path, outf, indent+1)
+      obj = _PackTree(prefix, rel_path, outf)
 
       outf.write(tnet.dump_line('<'))  # pop
       _WriteObj(outf, name, obj)
