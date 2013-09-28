@@ -4,6 +4,7 @@
 Usage:
   dfo [options] pack <dir>
   dfo [options] unpack <dir>
+  dfo [options] list [<archive>...]
   dfo [options] verify [<archive>...]
   dfo -h | --help
   dfo --version
@@ -12,8 +13,10 @@ Actions:
   pack: read the given directory and output an archive stream to stdout.
     Does it make sense for this to take multiple dirs, or is that another tool?
   unpack: read archive stream from stdin, and write to the given directory.
+  list: list filenames in the archive (requires linear scan through entire file)
   verify: check the integrity by going through checksums.
   id: read the value of a .dfo file?
+    that's at the end.  do I need a reverse offset at the end?
 
 Options:
   --indent=INDENT
@@ -225,9 +228,27 @@ def _PackTree(prefix, dir, outf, indent=0):
 
 def PackTree(d, outf):
   """Top level helper."""
+
+  # TODO: header?  Or maybe the trailer is all I need.
+
   obj = _PackTree(d, '', outf)
-  # write the final entry and checksum.
+
+  outf.write(tnet.dump_line('.'))  # last record: current dir
   _WriteObj(outf, '', obj)
+
+  # TODO: write out
+
+  c = hashlib.sha1()
+  c.update(obj)
+  hex = c.hexdigest()
+
+  # trailer has the final digest
+  # TODO: put other stuff here?  stamp?  I think stamps can go in internal
+  # files.
+  outf.write(tnet.dump_line(hex))  # last record: current dir
+
+  node_count = 0  # TODO
+  log('checksum of %d files: %s', node_count, hex)
 
 
 def _MakeOneDir(dir):
@@ -288,6 +309,10 @@ def _UnpackTree(in_file, dir):
       # - verify checksums
       log('<')
       os.chdir('..')
+    elif command == '.':
+      log('. at end')
+      # TODO: parse/chmod/verify
+
     elif command == 'F':
       log('F %s', name)
       with open(name, 'w') as f:
@@ -302,6 +327,8 @@ def _UnpackTree(in_file, dir):
 
     else:
       raise RuntimeError('Invalid command %r' % command)
+
+  # TODO: how to deal with the last '.' record in unpack?
 
   log('done unpack')
 
@@ -332,7 +359,7 @@ if __name__ == '__main__':
   try:
     sys.exit(main(sys.argv))
   except RuntimeError, e:
-    print >>sys.stderr, e.args[0]
+    print >>sys.stderr, 'dfo: fatal: %s' % e.args[0]
     sys.exit(1)
   except KeyboardInterrupt, e:
     print >>sys.stderr, '(dfo) Interrupted.'
