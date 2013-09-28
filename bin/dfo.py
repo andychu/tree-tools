@@ -104,21 +104,31 @@ def log(msg, *args):
 
 
 # TODO: obj could be a file too?  Checksum it gradually.
-def _WriteObj(outf, obj):
+def _WriteObj(outf, path, obj):
   c = hashlib.sha1()
   c.update(obj)
   sha1 = c.digest()
   #log('%r', sha1)
 
-  # Write out object first.  Use dump_line (tag '\n') so it's a little more
-  # parseable.
+  # Write out path.  This is technically extraneous, but makes unpacking
+  # faster.  We know where to put it, rather than having to write it out to a
+  # tmp file, and then move it when we get its parent dir entry.
+  #
+  # Use dump_line (tag '\n') so it's a little more human-parseable.
+  #
+  # We are fixing the format to (path, contents, checksum) here, but additional
+  # file metadata could be put in the dir formats?  (excluding the root).
+
+  outf.write(tnet.dump_line(path))
+
   outf.write(tnet.dump_line(obj))
   # Then sha1.
   outf.write(tnet.dump_line(c.hexdigest()))
+
   return c.hexdigest()  # for printing
 
 
-def _PackTree(dir, outf, indent=0):
+def _PackTree(prefix, dir, outf, indent=0):
   """
   Args:
     dir: root directory
@@ -128,7 +138,9 @@ def _PackTree(dir, outf, indent=0):
     Byte string representing the directory
   """
   ind = indent * '    '
-  entries = sorted(os.listdir(dir))
+
+  full_dir = os.path.join(prefix, dir)
+  entries = sorted(os.listdir(full_dir))
 
   # list of (name, sha1, type, perms), sorted by name.
   # What does this return?  I guess it has checksums of every entry.  It
@@ -139,21 +151,22 @@ def _PackTree(dir, outf, indent=0):
   this_dir = []
 
   for name in entries:
-    path = os.path.join(dir, name)
+    rel_path = os.path.join(dir, name)
+    path = os.path.join(prefix, rel_path)
     mode = os.lstat(path).st_mode
 
     if stat.S_ISLNK(mode):
       # contents of the blob is simply the target.
       obj = os.readlink(path)
 
-      hex = _WriteObj(outf, obj)
+      hex = _WriteObj(outf, rel_path, obj)
       # In git, a symlink has type "blob" but has flags 120000.  We're using a
       # separate type.  We only have soft links -- no hard links now.
       node_type = 'link'
 
     elif stat.S_ISDIR(mode):
-      obj = _PackTree(path, outf, indent+1)
-      hex = _WriteObj(outf, obj)
+      obj = _PackTree(prefix, rel_path, outf, indent+1)
+      hex = _WriteObj(outf, rel_path, obj)
       node_type = 'tree'
 
     else:
@@ -162,7 +175,7 @@ def _PackTree(dir, outf, indent=0):
       obj = f.read()
       f.close()
 
-      hex = _WriteObj(outf, obj)
+      hex = _WriteObj(outf, rel_path, obj)
       node_type = 'blob'
 
     # Git uses a binary format.  And then you can use git cat-file -p to pretty
@@ -212,15 +225,21 @@ def _UnpackTree(in_file, dir):
 
   while True:
     try:
-      contents = tnet.readbytes(in_file)
+      path = tnet.readbytes(in_file)
     except EOFError:
       break  # no more
+    print repr(path)
+
+    try:
+      contents = tnet.readbytes(in_file)
+    except EOFError:
+      raise RuntimeError('Exepected file contents, got EOF')
     print repr(contents)
 
     try:
       checksum = tnet.readbytes(in_file)
     except EOFError:
-      raise RuntimeError('Got final contents without checksum')
+      raise RuntimeError('Exepected checksum, got EOF')
     print repr(checksum)
 
     temp_path = '.dfo/%s' % checksum
@@ -231,6 +250,17 @@ def _UnpackTree(in_file, dir):
   log('wrote temp paths')
 
   # Now arrange entries
+
+  # problem:
+  # - you don't want to re-read entries
+  #
+  # possibly do:
+  #   (path, contents, checksum)
+  #
+  # Some redundancy there.
+  # for dir entries, have a trailing slash?  Then you can save them in memory?
+  # after all the files are written for that dir, you can chmod.
+
 
 
 def main(argv):
@@ -244,9 +274,9 @@ def main(argv):
   if opts['pack']:
     d = opts['<dir>'] or ['.']
     outf = sys.stdout
-    obj = _PackTree(d, outf)
+    obj = _PackTree(d, '', outf)
     # write the final entry and checksum.
-    _WriteObj(outf, obj)
+    _WriteObj(outf, '', obj)
 
   elif opts['unpack']:
     _UnpackTree(sys.stdin, opts['<dir>'])
@@ -266,4 +296,3 @@ if __name__ == '__main__':
   except KeyboardInterrupt, e:
     print >>sys.stderr, '(dfo) Interrupted.'
     sys.exit(1)
-
