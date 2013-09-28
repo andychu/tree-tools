@@ -57,6 +57,7 @@ unpack() {
 #
 # Original R .tar.gz    25.4 MB
 # dfo.gz                25.5 MB   4.08 s
+# dfo.bzip2             21.6 MB  17.24 s
 # dfo.xz                18.9 MB  56.99 s  !
 
 readonly R_TAR=~/hg/poly-runtimes/src/R-2.15.3.tar.gz
@@ -86,6 +87,12 @@ make-big-dfo() {
     time gzip <$out >$out.gz
   fi
   ls -al $out.gz
+
+  # bzip2 it
+  if ! test -f $out.bz2; then
+    time bzip2 <$out >$out.bz2
+  fi
+  ls -al $out.bz2
 
   # xz it
   if ! test -f $out.xz; then
