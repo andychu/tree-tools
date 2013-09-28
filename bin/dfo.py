@@ -173,7 +173,7 @@ def _PackTree(prefix, dir, outf, indent=0):
 
       # In git, a symlink has type "blob" but has flags 120000.  We're using a
       # separate type.  We only have soft links -- no hard links now.
-      node_type = 'link'
+      node_type = 'L'
       outf.write(tnet.dump_line('L'))  # symlink
       _WriteObj(outf, name, obj)
 
@@ -190,7 +190,7 @@ def _PackTree(prefix, dir, outf, indent=0):
       outf.write(tnet.dump_line(obj))  # checksums, etc.
 
       # pop here: write out checksums, permissions, type
-      node_type = 'tree'
+      node_type = 'D'
 
     elif stat.S_ISREG(mode):
       # TODO: stream this
@@ -198,7 +198,7 @@ def _PackTree(prefix, dir, outf, indent=0):
       obj = f.read()
       f.close()
 
-      node_type = 'blob'
+      node_type = 'F'
       outf.write(tnet.dump_line('F'))  # file
       _WriteObj(outf, name, obj)
 
@@ -258,81 +258,52 @@ def _UnpackTree(in_file, dir):
   log('chdir %s', dir)
   os.chdir(dir)  # everything is relative to this dir
 
-  log('making .dfo')
-  _MakeOneDir('.dfo')
-
   while True:
     try:
       command = tnet.readbytes(in_file)
     except EOFError:
       break  # no more
-    print repr(command)
+    #print repr(command)
 
     try:
       name = tnet.readbytes(in_file)
     except EOFError:
       raise RuntimeError('Expected node name, got EOF')
-    print repr(name)
+    #print repr(name)
 
     try:
       contents = tnet.readbytes(in_file)
     except EOFError:
       raise RuntimeError('Expected contents, got EOF')
-    print repr(contents)
+    #print repr(contents)
 
-    print
+    if command == '>':
+      log('> %s', name)
+      _MakeOneDir(name)
+      os.chdir(name)
+    elif command == '<':
+      # TODO:
+      # - parse line
+      # - chmod
+      # - verify checksums
+      log('<')
+      os.chdir('..')
+    elif command == 'F':
+      log('F %s', name)
+      with open(name, 'w') as f:
+        f.write(contents)
+    elif command == 'L':
+      log('L %s', name)
+      try:
+        os.symlink(contents, name)
+      except OSError, e:
+        if e.errno != errno.EEXIST:
+          raise RuntimeError('Error making symlink %r: %s' % (name, e))
 
-    # TODO: use DirMaker?
-    # Make the dirname of each path
-    # Then write the contents, and verify it.
-    #
-    # When you get a dir entry, chmod stuff?
-    # dir is signified perhaps by trailing /?
-    # what about links?  You don't want to write those.
-    #
-    # F my/file
-    # D my/dir
-    # L my/link
+    else:
+      raise RuntimeError('Invalid command %r' % command)
 
-    #temp_path = '.dfo/%s' % checksum
-    #with open(temp_path, 'w') as f:
-    #  f.write(contents)
-    #log('wrote %s' % temp_path)
-
-  log('wrote temp paths')
-
-  # Now arrange entries
-
-  # problem:
-  # - you don't want to re-read entries
-  #
-  # possibly do:
-  #   (path, contents, checksum)
-  #
-  # Some redundancy there.
-  # for dir entries, have a trailing slash?  Then you can save them in memory?
-  # after all the files are written for that dir, you can chmod.
-  #
-  # problem:
-  # git .pack file is a *random access format*.  it exists with an index.  this
-  # is a streaming format.
-  #
-  # simplest:
-  #
-  # push A
-  #   push B
-  #     file C, contents, checksum
-  #     link D, target, checksum
-  #   pop B (make C executable). checksum?
-  # pop B
-  #
-  # I still want a summary of the whole archive.  DFO is a *value*.
-  # Two requirements:
-  #  A stream
-  #  And a value
-  #
-  # These cause redundant information to be necessary.
-
+  log('done unpack')
 
 
 def main(argv):
