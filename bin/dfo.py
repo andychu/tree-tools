@@ -108,7 +108,7 @@ import tnet
 
 # Read/write large files in chunks of this size, so we dont' use too much
 # memory.
-CHUNK_SIZE = 1  # 1024 * 1024  # 1 MB 
+CHUNK_SIZE = 1024 * 1024  # 1 MB 
 
 
 def log(msg, *args):
@@ -147,6 +147,8 @@ def _PackTree(prefix, dir, outf):
   full_dir = os.path.join(prefix, dir)
   entries = sorted(os.listdir(full_dir))
 
+  # TODO: Use proper progress
+  log('pack %s', dir)
   for name in entries:
     rel_path = os.path.join(dir, name)
     path = os.path.join(prefix, rel_path)
@@ -478,6 +480,8 @@ if __name__ == '__main__':
 #   - I guess you can do diff -R
 #   - compare in size vs tar
 #   - compare in performance as well
+#   - try to blow it up with big length values -- make sure the TNET library
+#   limits those.
 #
 # - package it
 # - name it (kar?)
