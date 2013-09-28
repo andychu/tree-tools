@@ -27,6 +27,10 @@ Options:
 
 from __future__ import with_statement
 
+# other actions
+#   - unpack-content?  use sha1-named files
+#   - index: create index of sha1.  for negotiation when transferring?
+
 # options:
 # pack:
 #   - allow symlinks pointing outside the tree?
@@ -41,10 +45,12 @@ from __future__ import with_statement
 #
 # TODO:
 #
-# - add header?
-# - implement verification, error checking
-#   - the verify command should use the Verifier class
+# - add header?  version at least
+# - figure out the algorithm for reading the trailer.
+#
 # - implement streaming of files (on unpacking)
+# - implement 'verify' action with verifier class
+# - implement 'list' action
 #
 # - tests
 #   - I guess you can do diff -R
@@ -124,7 +130,7 @@ def _PackTree(prefix, dir, outf):
     path = os.path.join(prefix, rel_path)
     mode = os.lstat(path).st_mode
 
-    hex = None
+    checksum = None  # hex sha1
 
     if stat.S_ISLNK(mode):  # symlink
       # contents of the blob is simply the target.
@@ -142,7 +148,7 @@ def _PackTree(prefix, dir, outf):
       _WritePair(outf, node_type, name)
 
       # Stream regular files so we don't take up too much memory.
-      checksum = hashlib.sha1()
+      sha1 = hashlib.sha1()
       length = os.path.getsize(path)
       outf.write('%d:' % length)  # netstring prefix
       with open(path) as f:
@@ -151,10 +157,10 @@ def _PackTree(prefix, dir, outf):
           if not chunk:  # EOF
             break
           outf.write(chunk)
-          checksum.update(chunk)
+          sha1.update(chunk)
 
       outf.write('\n')  # netstring suffix
-      hex = checksum.hexdigest()
+      checksum = sha1.hexdigest()
       this_count += 1
 
     elif stat.S_ISDIR(mode):  # directory
@@ -174,10 +180,10 @@ def _PackTree(prefix, dir, outf):
     else:
       raise RuntimeError("Can't serialize %r, of type %o" % (name, mode))
 
-    if not hex:
+    if not checksum:
       c = hashlib.sha1()
       c.update(obj)
-      hex = c.hexdigest()
+      checksum = c.hexdigest()
 
     # Git uses a binary format.  And then you can use git cat-file -p to pretty
     # print it.  I think it's fine just to use text.  No special tools needed.
@@ -190,7 +196,7 @@ def _PackTree(prefix, dir, outf):
       p = 'x' 
     else:
       p = '-'
-    rec = (p, node_type, hex, name)
+    rec = (p, node_type, checksum, name)
     this_dir.append('%s %s %s %s' % rec)  # octal perms
 
   return '\n'.join(this_dir) + '\n', this_count
@@ -221,13 +227,13 @@ def PackTree(d, outf):
   # Write out final checksum in trailer.
   c = hashlib.sha1()
   c.update(obj)
-  hex = c.hexdigest()
+  checksum = c.hexdigest()
 
-  outf.write(tnet.dump_line(hex))  # last record: current dir
+  outf.write(tnet.dump_line(checksum))  # last record: current dir
 
   # TODO: put other stuff in the trailer?  stamp?  I think stamps can go in
   # internal files.
-  log('checksum of %d nodes: %s', node_count, hex)
+  log('checksum of %d nodes: %s', node_count, checksums)
 
 
 def _MakeOneDir(dir):
@@ -350,6 +356,7 @@ def _UnpackTree(in_file, dir):
         _MakeOneDir(name)
         os.chdir(name)
       else:
+        # This is the first one
         #log('BEGIN')
         pass
 
