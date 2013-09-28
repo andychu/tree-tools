@@ -164,7 +164,9 @@ def _PackTree(prefix, dir, outf):
       obj, node_count = _PackTree(prefix, rel_path, outf)  # recurse
       this_count += node_count + 1  # +1 for yourself
 
-      _WritePair(outf, '<', '')  # no name
+      # REDUNDANT name for extra integrity (and easier parsing).  Repeating
+      # every dir name twice isn't significant size overhead in most cases.
+      _WritePair(outf, '<', name)
       outf.write(tnet.dump_line(obj))
 
       node_type = 'D'
@@ -258,16 +260,25 @@ class Verifier(object):
     # - chmod
     # - verify checksums
 
+    for line in expected.splitlines():
+      # split on single space, not whitespace, so we don't accept multiple
+      # spaces, etc.  There's no reason to be more ambiguous than necessary.
+      try:
+        perms, type, expected_checksum, name = line.split(' ', 3)
+      except ValueError:
+        raise RuntimeError('Invalid directory entry %r' % line)
+      print '.', perms, type, expected_checksum, name
+
     actual = self.current
     print 'A', actual
-    print 'E', expected
+    #print 'E', expected
     self.stack.pop()
     if self.stack:
       self.current = self.stack[-1]
 
-  def OnEntry(self, entry):
+  def OnEntry(self, name, actual_checksum):
     """Call this on each entry in a dir."""
-    self.current.append(entry)  # actual entry
+    self.current.append((name, actual_checksum))  # actual entry
 
 
 def _UnpackTree(in_file, dir):
@@ -322,7 +333,7 @@ def _UnpackTree(in_file, dir):
     elif command == '<':
       #log('<')
       v.Pop(contents)  # pass expected checksums and permissions to verify
-      v.OnEntry(actual_checksum)  # add this dir entry
+      v.OnEntry(name, actual_checksum)  # add this dir entry
 
       level -= 1
       if level == 0:
@@ -339,7 +350,7 @@ def _UnpackTree(in_file, dir):
       with open(name, 'w') as f:
         f.write(contents)
 
-      v.OnEntry(actual_checksum)
+      v.OnEntry(name, actual_checksum)
 
     elif command == 'L':
       #log('L %s', name)
@@ -349,7 +360,7 @@ def _UnpackTree(in_file, dir):
         if e.errno != errno.EEXIST:
           raise RuntimeError('Error making symlink %r: %s' % (name, e))
 
-      v.OnEntry(actual_checksum)
+      v.OnEntry(name, actual_checksum)
 
     else:
       raise RuntimeError('Invalid command %r' % command)
