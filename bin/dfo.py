@@ -212,39 +212,32 @@ def _MakeOneDir(dir):
       raise
 
 
-# TODO: Should be Pop()
-def _FinishDir(contents):
-  """chmod and verify.
-
-  Raises:
-    RuntimeError on any verification errors.
-  """
-  log('chmod and verify %s', contents)
-  for line in contents.splitlines():
-    print repr(line)
-    # name can have spaces in it
-    mode, expected_type, expected_sum, name = line.split(None, 3)
-    print mode
-    print expected_type
-    print expected_sum
-    print name
-
-
 class Verifier(object):
-  def __init_(self):
-    pass
+  """Verifies that content has the expected checksums."""
+
+  def __init__(self):
+    self.current = None  # list of actual entries in the current dir
+    self.stack = []  # list of lists of actuals
 
   def Push(self):
-    """Call on new dir ( > command)."""
-    pass
+    """Call on opening dir ('>' command)."""
+    self.current = []
+    self.stack.append(self.current)
 
-  def Pop(self):
-    """Call on closing dir ( < command)."""
-    pass
+  def Pop(self, expected):
+    """Call on closing dir ('<' command).
 
-  def OnEntry(self):
-    """Call on each entry in a dir."""
-    pass
+    Raises:
+      RuntimeError: if something doesn't match.
+    """
+    # TODO:
+    # - compared expected vs self.current
+
+    self.stack.pop()
+
+  def OnEntry(self, entry):
+    """Call this on each entry in a dir."""
+    self.current.append(entry)  # actual entry
 
 
 def _UnpackTree(in_file, dir):
@@ -266,7 +259,7 @@ def _UnpackTree(in_file, dir):
   # Verifier can also track:
   # - stack too deep (1000)
 
-  to_verify = []
+  v = Verifier()
 
   # The last record is always the last <, where we return to 0.
   level = 0
@@ -297,6 +290,7 @@ def _UnpackTree(in_file, dir):
         os.chdir(name)
       else:
         log('BEGIN')
+      v.Push()
       level += 1
       #to_verify.append([])
 
@@ -306,7 +300,7 @@ def _UnpackTree(in_file, dir):
       # - chmod
       # - verify checksums
       log('<')
-      _FinishDir(contents)
+      v.Pop(contents)
       level -= 1
       if level == 0:
         log('DONE')
@@ -318,8 +312,11 @@ def _UnpackTree(in_file, dir):
 
     elif command == 'F':
       log('F %s', name)
+      # TODO: stream it
       with open(name, 'w') as f:
         f.write(contents)
+
+      v.OnEntry(contents)
 
     elif command == 'L':
       log('L %s', name)
@@ -328,6 +325,8 @@ def _UnpackTree(in_file, dir):
       except OSError, e:
         if e.errno != errno.EEXIST:
           raise RuntimeError('Error making symlink %r: %s' % (name, e))
+
+      v.OnEntry(contents)
 
     else:
       raise RuntimeError('Invalid command %r' % command)
