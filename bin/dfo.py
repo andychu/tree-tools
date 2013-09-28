@@ -263,22 +263,24 @@ def _UnpackTree(in_file, dir):
 
   while True:
     try:
-      path = tnet.readbytes(in_file)
+      command = tnet.readbytes(in_file)
     except EOFError:
       break  # no more
-    print repr(path)
+    print repr(command)
+
+    try:
+      name = tnet.readbytes(in_file)
+    except EOFError:
+      raise RuntimeError('Expected node name, got EOF')
+    print repr(name)
 
     try:
       contents = tnet.readbytes(in_file)
     except EOFError:
-      raise RuntimeError('Exepected file contents, got EOF')
+      raise RuntimeError('Expected contents, got EOF')
     print repr(contents)
 
-    try:
-      checksum = tnet.readbytes(in_file)
-    except EOFError:
-      raise RuntimeError('Exepected checksum, got EOF')
-    print repr(checksum)
+    print
 
     # TODO: use DirMaker?
     # Make the dirname of each path
@@ -292,10 +294,10 @@ def _UnpackTree(in_file, dir):
     # D my/dir
     # L my/link
 
-    temp_path = '.dfo/%s' % checksum
-    with open(temp_path, 'w') as f:
-      f.write(contents)
-    log('wrote %s' % temp_path)
+    #temp_path = '.dfo/%s' % checksum
+    #with open(temp_path, 'w') as f:
+    #  f.write(contents)
+    #log('wrote %s' % temp_path)
 
   log('wrote temp paths')
 
