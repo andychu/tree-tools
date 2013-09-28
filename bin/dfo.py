@@ -19,6 +19,9 @@ Options:
   --indent=INDENT
       Number of spaces to indent.  (or character?)
 """
+
+from __future__ import with_statement
+
 # options:
 # pack:
 #   - allow symlinks pointing outside the tree?
@@ -107,10 +110,11 @@ def _WriteObj(outf, obj):
   sha1 = c.digest()
   #log('%r', sha1)
 
-  # Write out object first.
-  outf.write(tnet.dumps(obj))
+  # Write out object first.  Use dump_line (tag '\n') so it's a little more
+  # parseable.
+  outf.write(tnet.dump_line(obj))
   # Then sha1.
-  outf.write(tnet.dumps(c.hexdigest()))
+  outf.write(tnet.dump_line(c.hexdigest()))
   return c.hexdigest()  # for printing
 
 
@@ -183,7 +187,7 @@ def _MakeOneDir(dir):
       raise
 
 
-def _UnpackTree(f, dir):
+def _UnpackTree(in_file, dir):
   # algorithm:
   # 1. in a single pass, extract all the content to /_dfo-tmp/<sha1>, and
   # verify checksums.
@@ -208,18 +212,25 @@ def _UnpackTree(f, dir):
 
   while True:
     try:
-      contents = tnet.read(f)
+      contents = tnet.readbytes(in_file)
     except EOFError:
       break  # no more
     print repr(contents)
 
     try:
-      checksum = tnet.read(f)
+      checksum = tnet.readbytes(in_file)
     except EOFError:
       raise RuntimeError('Got final contents without checksum')
     print repr(checksum)
 
-  log('done')
+    temp_path = '.dfo/%s' % checksum
+    with open(temp_path, 'w') as f:
+      f.write(contents)
+    log('wrote %s' % temp_path)
+
+  log('wrote temp paths')
+
+  # Now arrange entries
 
 
 def main(argv):
