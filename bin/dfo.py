@@ -181,7 +181,6 @@ def _PackTree(prefix, dir, outf, indent=0):
       _WriteObj(outf, name, obj)
 
     elif stat.S_ISDIR(mode):
-      # TODO: Push 'name' here?  To help streams.
       outf.write(tnet.dump_line('>'))  # push
       outf.write(tnet.dump_line(name))
       outf.write(tnet.dump_line(''))  # no contents
@@ -225,10 +224,24 @@ def _PackTree(prefix, dir, outf, indent=0):
   return '\n'.join(this_dir) + '\n'
 
 
+# TODO: This should be:
+# PackDir
+#   PackNode -- this has a switch, one of which calls PackDir
+# 
+# Consider '> name' ''
+#          'F name' contents
+#          'L name' contents
+#          '< '     contents
+#
+# The 'command' is the first two chars.
+
 def PackTree(d, outf):
   """Top level helper."""
 
   # TODO: header?  Or maybe the trailer is all I need.
+  # Header is where you would put a version number.
+  # Do you need the total number of records?
+  # It is 2 * (#files) + 1 + 1
 
   # to balance < and >, the top level has no name.
   outf.write(tnet.dump_line('>'))  # push
@@ -240,16 +253,15 @@ def PackTree(d, outf):
   outf.write(tnet.dump_line('<'))  # last record: current dir
   _WriteObj(outf, '', obj)
 
-  # TODO: write out
-
+  # Write out final checksum in trailer.
   c = hashlib.sha1()
   c.update(obj)
   hex = c.hexdigest()
 
-  # trailer has the final digest
+  outf.write(tnet.dump_line(hex))  # last record: current dir
+
   # TODO: put other stuff here?  stamp?  I think stamps can go in internal
   # files.
-  outf.write(tnet.dump_line(hex))  # last record: current dir
 
   node_count = 0  # TODO
   log('checksum of %d files: %s', node_count, hex)
@@ -280,20 +292,7 @@ def _FinishDir(contents):
     print name
 
 
-
 def _UnpackTree(in_file, dir):
-  # algorithm:
-  # 1. in a single pass, extract all the content to /_dfo-tmp/<sha1>, and
-  # verify checksums.
-  # 2. the LAST one is a directory.  Pase it.
-  #  for each entry:
-  #    if file, move it
-  #    if symlink, create it
-  #    if directory
-  #      create it
-  #      recurse using the that file checksum
-  #    set permissions (executable)
-
   # I think we should only make one level -- not mkdir -p.
   log('making %s', dir)
   _MakeOneDir(dir)
@@ -304,9 +303,17 @@ def _UnpackTree(in_file, dir):
   # we verify one dir at at time
   # (actual name, actual checksum) pairs.
   # this needs a cursor?
+  # Verifier()
+  #   Push()
+  #   OnEntry()  # add actual
+  #   Pop()  # get expected, then verifies it
+
   to_verify = []
 
   # TODO: better termination condition?
+  #
+  # after unpacking, we should print the final checksum as the only thing on
+  # stdout?
   while True:
     try:
       command = tnet.readbytes(in_file)
