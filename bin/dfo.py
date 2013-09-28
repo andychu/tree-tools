@@ -39,7 +39,7 @@ from __future__ import with_statement
 #
 # - implement verification, error checking
 #   - the verify command should use the Verifier class
-# - implement streaming of files on unpacking
+# - implement streaming of files (on unpacking)
 # - tests
 #   - I guess you can do diff -R
 # - condense the format to 2-tuples
@@ -98,6 +98,7 @@ def _PackTree(prefix, dir, outf):
   chunk_size = 1  # 1024 * 1024  # 1 MB -- make this a flag for testing?
 
   this_dir = []
+  this_count = 0
 
   full_dir = os.path.join(prefix, dir)
   entries = sorted(os.listdir(full_dir))
@@ -109,7 +110,7 @@ def _PackTree(prefix, dir, outf):
 
     hex = None
 
-    if stat.S_ISLNK(mode):
+    if stat.S_ISLNK(mode):  # symlink
       # contents of the blob is simply the target.
       obj = os.readlink(path)
 
@@ -118,23 +119,13 @@ def _PackTree(prefix, dir, outf):
       node_type = 'L'
       _WritePair(outf, node_type, name)
       outf.write(tnet.dump_line(obj))
+      this_count += 1
 
-    elif stat.S_ISDIR(mode):
-      _WritePair(outf, '>', name)
-      outf.write(tnet.dump_line(''))  # no contents
-
-      obj = _PackTree(prefix, rel_path, outf)
-
-      _WritePair(outf, '<', '')  # no name
-      outf.write(tnet.dump_line(obj))
-
-      node_type = 'D'
-
-    elif stat.S_ISREG(mode):
+    elif stat.S_ISREG(mode):  # file
       node_type = 'F'
       _WritePair(outf, node_type, name)
 
-      # stream regular files so we don't take up too much memory.
+      # Stream regular files so we don't take up too much memory.
       checksum = hashlib.sha1()
       length = os.path.getsize(path)
       outf.write('%d:' % length)  # netstring prefix
@@ -144,10 +135,23 @@ def _PackTree(prefix, dir, outf):
           if not chunk:  # EOF
             break
           outf.write(chunk)
-          checksum.update(chunk)  # checksum
+          checksum.update(chunk)
 
       outf.write('\n')  # netstring suffix
       hex = checksum.hexdigest()
+      this_count += 1
+
+    elif stat.S_ISDIR(mode):  # directory
+      _WritePair(outf, '>', name)
+      outf.write(tnet.dump_line(''))  # no contents
+
+      obj, node_count = _PackTree(prefix, rel_path, outf)  # recurse
+      this_count += node_count + 1  # +1 for yourself
+
+      _WritePair(outf, '<', '')  # no name
+      outf.write(tnet.dump_line(obj))
+
+      node_type = 'D'
 
     else:
       raise RuntimeError("Can't serialize %r, of type %o" % (name, mode))
@@ -163,13 +167,9 @@ def _PackTree(prefix, dir, outf):
     rec = (perms, node_type, hex, name)
     this_dir.append('%o %s %s %s' % rec)  # octal perms
 
-  return '\n'.join(this_dir) + '\n'
+  return '\n'.join(this_dir) + '\n', this_count
 
 
-# TODO: This should be:
-# PackDir
-#   PackNode -- this has a switch, one of which calls PackDir
-# 
 # Consider '> name' ''
 #          'F name' contents
 #          'L name' contents
@@ -187,7 +187,7 @@ def PackTree(d, outf):
   _WritePair(outf, '>', '')
   outf.write(tnet.dump_line(''))  # no contents
 
-  obj = _PackTree(d, '', outf)
+  obj, node_count = _PackTree(d, '', outf)
 
   _WritePair(outf, '<', '')  # no name
   outf.write(tnet.dump_line(obj))
@@ -201,8 +201,7 @@ def PackTree(d, outf):
 
   # TODO: put other stuff here?  stamp?  I think stamps can go in internal
   # files.
-  node_count = 0  # TODO
-  log('checksum of %d files: %s', node_count, hex)
+  log('checksum of %d nodes: %s', node_count, hex)
 
 
 def _MakeOneDir(dir):
@@ -229,6 +228,23 @@ def _FinishDir(contents):
     print expected_type
     print expected_sum
     print name
+
+
+class Verifier(object):
+  def __init_(self):
+    pass
+
+  def Push(self):
+    """Call on new dir ( > command)."""
+    pass
+
+  def Pop(self):
+    """Call on closing dir ( < command)."""
+    pass
+
+  def OnEntry(self):
+    """Call on each entry in a dir."""
+    pass
 
 
 def _UnpackTree(in_file, dir):
