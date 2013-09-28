@@ -39,6 +39,7 @@ from __future__ import with_statement
 #
 # TODO:
 #
+# - add header?
 # - implement verification, error checking
 #   - the verify command should use the Verifier class
 # - implement streaming of files (on unpacking)
@@ -207,8 +208,8 @@ def PackTree(d, outf):
 
   outf.write(tnet.dump_line(hex))  # last record: current dir
 
-  # TODO: put other stuff here?  stamp?  I think stamps can go in internal
-  # files.
+  # TODO: put other stuff in the trailer?  stamp?  I think stamps can go in
+  # internal files.
   log('checksum of %d nodes: %s', node_count, hex)
 
 
