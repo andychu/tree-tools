@@ -37,6 +37,17 @@ unpack() {
   bin/ftree $out
   tree -p _tmp/pack
   tree -p $out
+
+
+  # Purposely corrupt it
+  cat _tmp/foo.dfo |
+    sed 's/spam contents/SPAM contents/' |
+    bin/dfo unpack $out
+
+  # Purposely corrupt a filename too
+  cat _tmp/foo.dfo |
+    sed 's/spam/SPAM/' |
+    bin/dfo unpack $out
 }
 
 "$@"
