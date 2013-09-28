@@ -27,7 +27,7 @@ Options:
 
 from __future__ import with_statement
 
-# SPEC (todo: separate into a doc)
+# SPEC (todo: put this in a doc)
 #
 # A DFO stream consists of a sequence of length-prefixed netstring records.
 # Netstrings end with '\n' rather than ',' so that streams can be inspected
@@ -69,43 +69,6 @@ from __future__ import with_statement
 #   packing and unpacking are single-pass algorithms.
 
 
-# NOTES
-#
-# other actions
-#   - unpack-content?  use sha1-named files
-#   - index: create index of sha1.  for negotiation when transferring?
-#
-# options:
-#   pack:
-#     - allow symlinks pointing outside the tree?
-#     - follow symlinks (to /cas)?
-#   unpack:
-#     - use cas to unpack?
-#   both:
-#     - --progress like tar --checkpoint=1000
-#
-# CGI mode?  For dynamically constructing packs?  Probably should just export
-# it as a library.
-#
-# TODO
-#
-# - figure out the algorithm for reading the trailer.
-#
-# - implement streaming of files (on unpacking)
-# - implement 'verify' action with verifier class
-# - implement 'list' action
-#
-# - tests
-#   - I guess you can do diff -R
-#   - compare in size vs tar
-#   - compare in performance as well
-#
-# - package it
-# - name it (kar?)
-#
-# - write documentation about the format (doc/dfo.txt)
-
-
 import errno
 import hashlib
 import os
@@ -136,6 +99,7 @@ def _WritePair(outf, cmd, name):
   """Write a 'cmd' pair in length-prefixed netstring format."""
   s = '%s %s' % (cmd, name)
   outf.write(tnet.dump_line(s))
+
 
 def _PackTree(prefix, dir, outf):
   """
@@ -340,12 +304,11 @@ def _MakeOneDir(dir):
 def _UnpackTree(in_file, dir):
   # I think we should only make one level -- not mkdir -p.
   _MakeOneDir(dir)
-
   os.chdir(dir)  # everything is relative to this dir
 
   v = Verifier()
 
-  # The last record is always the last <, where we return to 0.
+  # Tree depth counter.  We know we're done when we return to 0.
   level = 0
 
   try:
@@ -366,7 +329,8 @@ def _UnpackTree(in_file, dir):
     except ValueError:
       raise RuntimeError('Invalid op record %r' % op)
 
-    # TODO: read length from stream.  Then read in CHUNK_SIZE chunks.  And checksum.
+    # TODO: read length from stream.  Then read in CHUNK_SIZE chunks.  And
+    # checksum.
     c = hashlib.sha1()
     try:
       contents = tnet.readbytes(in_file)
@@ -453,3 +417,40 @@ if __name__ == '__main__':
   except KeyboardInterrupt, e:
     print >>sys.stderr, '(dfo) Interrupted.'
     sys.exit(1)
+
+
+# NOTES
+#
+# other actions
+#   - unpack-content?  use sha1-named files
+#   - index: create index of sha1.  for negotiation when transferring?
+#
+# options:
+#   pack:
+#     - allow symlinks pointing outside the tree?
+#     - follow symlinks (to /cas)?
+#   unpack:
+#     - use cas to unpack?
+#   both:
+#     - --progress like tar --checkpoint=1000
+#
+# CGI mode?  For dynamically constructing packs?  Probably should just export
+# it as a library.
+#
+# TODO
+#
+# - figure out the algorithm for reading the trailer.
+#
+# - implement streaming of files (on unpacking)
+# - implement 'verify' action with verifier class
+# - implement 'list' action
+#
+# - tests
+#   - I guess you can do diff -R
+#   - compare in size vs tar
+#   - compare in performance as well
+#
+# - package it
+# - name it (kar?)
+#
+# - write documentation about the format (doc/dfo.txt)
