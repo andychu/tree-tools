@@ -150,7 +150,9 @@ def _PackTree(prefix, dir, outf):
   for name in entries:
     rel_path = os.path.join(dir, name)
     path = os.path.join(prefix, rel_path)
-    mode = os.lstat(path).st_mode
+    st = os.lstat(path)
+    mode = st.st_mode
+    file_size = st.st_size  # only used for regular files
 
     checksum = None  # hex sha1
 
@@ -171,8 +173,7 @@ def _PackTree(prefix, dir, outf):
 
       # Stream regular files so we don't take up too much memory.
       sha1 = hashlib.sha1()
-      length = os.path.getsize(path)
-      outf.write('%d:' % length)  # netstring prefix
+      outf.write('%d:' % file_size)  # netstring prefix
       with open(path) as f:
         while True:
           chunk = f.read(chunk_size)
