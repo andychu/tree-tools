@@ -104,10 +104,7 @@ def log(msg, *args):
 
 
 # TODO: obj could be a file too?  Checksum it gradually.
-def _WriteObj(outf, path, obj):
-  c = hashlib.sha1()
-  c.update(obj)
-  sha1 = c.digest()
+def _WriteObj(outf, name, obj):
   #log('%r', sha1)
 
   # Write out path.  This is technically extraneous, but makes unpacking
@@ -119,13 +116,9 @@ def _WriteObj(outf, path, obj):
   # We are fixing the format to (path, contents, checksum) here, but additional
   # file metadata could be put in the dir formats?  (excluding the root).
 
-  outf.write(tnet.dump_line(path))
-
+  outf.write(tnet.dump_line(name))
   outf.write(tnet.dump_line(obj))
   # Then sha1.
-  outf.write(tnet.dump_line(c.hexdigest()))
-
-  return c.hexdigest()  # for printing
 
 
 def _PackTree(prefix, dir, outf, indent=0):
@@ -148,6 +141,25 @@ def _PackTree(prefix, dir, outf, indent=0):
   #
   # (name, checksum, type, perms)
 
+
+  # list of records
+  # (TYPE, name, checksum)
+
+  # (PUSH, name, '')
+  # (FILE, name, contents)
+  # (LINK, name, contents)
+  # (POP, '', contents)  # contents contain permissions, checksums
+  #
+  # So dir is PUSH/POP.  Files/symlinks are single nodes.
+  #
+  # Dir looks like:
+  #
+  # PERMS TYPE CHECKSUM NAME
+  # (type is redundant, but you wouldn't want changing a file to a symlink not
+  # to change the dir checksum)
+  #
+  # then TRAILER containers the overall checksum?  No perms.
+
   this_dir = []
 
   for name in entries:
@@ -159,24 +171,43 @@ def _PackTree(prefix, dir, outf, indent=0):
       # contents of the blob is simply the target.
       obj = os.readlink(path)
 
-      hex = _WriteObj(outf, rel_path, obj)
       # In git, a symlink has type "blob" but has flags 120000.  We're using a
       # separate type.  We only have soft links -- no hard links now.
       node_type = 'link'
+      outf.write(tnet.dump_line('L'))  # symlink
+      _WriteObj(outf, name, obj)
 
     elif stat.S_ISDIR(mode):
+      # TODO: Push 'name' here?  To help streams.
+      outf.write(tnet.dump_line('>'))  # push
+      outf.write(tnet.dump_line(name))
+      outf.write(tnet.dump_line(''))  # no contents
+
       obj = _PackTree(prefix, rel_path, outf, indent+1)
-      hex = _WriteObj(outf, rel_path, obj)
+
+      outf.write(tnet.dump_line('<'))  # pop
+      outf.write(tnet.dump_line(''))
+      outf.write(tnet.dump_line(obj))  # checksums, etc.
+
+      # pop here: write out checksums, permissions, type
       node_type = 'tree'
 
-    else:
+    elif stat.S_ISREG(mode):
       # TODO: stream this
       f = open(path)
       obj = f.read()
       f.close()
 
-      hex = _WriteObj(outf, rel_path, obj)
       node_type = 'blob'
+      outf.write(tnet.dump_line('F'))  # file
+      _WriteObj(outf, name, obj)
+
+    else:
+      raise RuntimeError("Can't serialize %r, of type %o" % (name, mode))
+
+    c = hashlib.sha1()
+    c.update(obj)
+    hex = c.hexdigest()
 
     # Git uses a binary format.  And then you can use git cat-file -p to pretty
     # print it.  I think it's fine just to use text.  No special tools needed.
@@ -249,6 +280,18 @@ def _UnpackTree(in_file, dir):
       raise RuntimeError('Exepected checksum, got EOF')
     print repr(checksum)
 
+    # TODO: use DirMaker?
+    # Make the dirname of each path
+    # Then write the contents, and verify it.
+    #
+    # When you get a dir entry, chmod stuff?
+    # dir is signified perhaps by trailing /?
+    # what about links?  You don't want to write those.
+    #
+    # F my/file
+    # D my/dir
+    # L my/link
+
     temp_path = '.dfo/%s' % checksum
     with open(temp_path, 'w') as f:
       f.write(contents)
@@ -267,6 +310,26 @@ def _UnpackTree(in_file, dir):
   # Some redundancy there.
   # for dir entries, have a trailing slash?  Then you can save them in memory?
   # after all the files are written for that dir, you can chmod.
+  #
+  # problem:
+  # git .pack file is a *random access format*.  it exists with an index.  this
+  # is a streaming format.
+  #
+  # simplest:
+  #
+  # push A
+  #   push B
+  #     file C, contents, checksum
+  #     link D, target, checksum
+  #   pop B (make C executable). checksum?
+  # pop B
+  #
+  # I still want a summary of the whole archive.  DFO is a *value*.
+  # Two requirements:
+  #  A stream
+  #  And a value
+  #
+  # These cause redundant information to be necessary.
 
 
 
