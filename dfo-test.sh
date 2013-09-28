@@ -12,6 +12,9 @@ create() {
   mkdir -p bar
   echo "baz contents" > bar/baz
   chmod +x bar/baz
+
+  echo "filename with space contents" > 'bar/filename with space'
+
   echo "spam contents" > spam
   ln -s spam link
 

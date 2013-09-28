@@ -45,7 +45,6 @@ from __future__ import with_statement
 #
 # TODO:
 #
-# - add header?  version at least
 # - figure out the algorithm for reading the trailer.
 #
 # - implement streaming of files (on unpacking)
@@ -59,7 +58,6 @@ from __future__ import with_statement
 # - package it
 # - name it (kar?)
 #
-# - condense the format to 2-tuples
 # - write documentation about the format (doc/dfo.txt)
 
 
@@ -84,15 +82,15 @@ def log(msg, *args):
   print >>sys.stderr, msg
 
 
-# TODO: change to a single pair
-def _WritePair(outf, cmd, name):
-  outf.write(tnet.dump_line(cmd))
-  outf.write(tnet.dump_line(name))
-
-
 def _WriteChunk(outf, chunk):
   """Write a byte string in length-prefixed netstring format."""
   outf.write(tnet.dump_line(chunk))
+
+
+def _WritePair(outf, cmd, name):
+  """Write a 'cmd' pair in length-prefixed netstring format."""
+  s = '%s %s' % (cmd, name)
+  outf.write(tnet.dump_line(s))
 
 
 # FORMAT
@@ -345,16 +343,15 @@ def _UnpackTree(in_file, dir):
   
   while True:
     try:
-      command = tnet.readbytes(in_file)
+      op = tnet.readbytes(in_file)
     except EOFError:
       break  # no more
     #log('%r', command)
 
     try:
-      name = tnet.readbytes(in_file)
-    except EOFError:
-      raise RuntimeError('Expected node name, got EOF')
-    #print repr(name)
+      command, name = op.split(' ', 1)
+    except ValueError:
+      raise RuntimeError('Invalid op record %r' % op)
 
     # TODO: read length from stream.  Then read in CHUNK_SIZE chunks.  And checksum.
     c = hashlib.sha1()
