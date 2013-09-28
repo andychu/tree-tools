@@ -34,6 +34,7 @@ Options:
 # - round trip it
 # - I guess you can do diff -R
 
+import errno
 import hashlib
 import os
 import stat
@@ -167,15 +168,58 @@ def _PackTree(dir, outf, indent=0):
     this_dir.append('%o %s %s %s' % rec)  # octal perms
 
   # TODO: output an object representing: (type, permissions)
-  log('---')
-  log('%s', '\n'.join(this_dir))
-  log('---')
+  #log('---')
+  #log('%s', '\n'.join(this_dir))
+  #log('---')
 
-  return '\n'.join(this_dir)
+  return '\n'.join(this_dir) + '\n'
+
+
+def _MakeOneDir(dir):
+  try:
+    return os.mkdir(dir)
+  except OSError, e:
+    if e.errno != errno.EEXIST:
+      raise
 
 
 def _UnpackTree(f, dir):
-  pass
+  # algorithm:
+  # 1. in a single pass, extract all the content to /_dfo-tmp/<sha1>, and
+  # verify checksums.
+  # 2. the LAST one is a directory.  Pase it.
+  #  for each entry:
+  #    if file, move it
+  #    if symlink, create it
+  #    if directory
+  #      create it
+  #      recurse using the that file checksum
+  #    set permissions (executable)
+
+  # I think we should only make one level -- not mkdir -p.
+  log('making %s', dir)
+  _MakeOneDir(dir)
+
+  log('chdir %s', dir)
+  os.chdir(dir)  # everything is relative to this dir
+
+  log('making .dfo')
+  _MakeOneDir('.dfo')
+
+  while True:
+    try:
+      contents = tnet.read(f)
+    except EOFError:
+      break  # no more
+    print repr(contents)
+
+    try:
+      checksum = tnet.read(f)
+    except EOFError:
+      raise RuntimeError('Got final contents without checksum')
+    print repr(checksum)
+
+  log('done')
 
 
 def main(argv):
@@ -188,10 +232,14 @@ def main(argv):
 
   if opts['pack']:
     d = opts['<dir>'] or ['.']
-    _PackTree(d, sys.stdout)
+    outf = sys.stdout
+    obj = _PackTree(d, outf)
+    # write the final entry and checksum.
+    _WriteObj(outf, obj)
+
   elif opts['unpack']:
     _UnpackTree(sys.stdin, opts['<dir>'])
-    print 'unpack'
+
   else:
     raise AssertionError('Invalid action')
 
