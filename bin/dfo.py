@@ -14,6 +14,8 @@ Actions:
     Does it make sense for this to take multiple dirs, or is that another tool?
   unpack: read archive stream from stdin, and write to the given directory.
   list: list filenames in the archive (requires linear scan through entire file)
+    note: we could output a text file compatible with sha1sum?  doesn't check
+    file metadata though.
   verify: check the integrity by going through checksums.
   id: read the value of a .dfo file?
     that's at the end.  do I need a reverse offset at the end?
@@ -40,8 +42,14 @@ from __future__ import with_statement
 # - implement verification, error checking
 #   - the verify command should use the Verifier class
 # - implement streaming of files (on unpacking)
+#
 # - tests
 #   - I guess you can do diff -R
+#   - compare in size vs tar
+#
+# - package it
+# - name it (kar?)
+#
 # - condense the format to 2-tuples
 # - write documentation about the format (doc/dfo.txt)
 
@@ -233,6 +241,11 @@ class Verifier(object):
     # TODO:
     # - compared expected vs self.current
 
+    # TODO:
+    # - parse line
+    # - chmod
+    # - verify checksums
+
     self.stack.pop()
 
   def OnEntry(self, entry):
@@ -242,10 +255,10 @@ class Verifier(object):
 
 def _UnpackTree(in_file, dir):
   # I think we should only make one level -- not mkdir -p.
-  log('making %s', dir)
+  #log('making %s', dir)
   _MakeOneDir(dir)
 
-  log('chdir %s', dir)
+  #log('chdir %s', dir)
   os.chdir(dir)  # everything is relative to this dir
 
   # we verify one dir at at time
@@ -269,7 +282,7 @@ def _UnpackTree(in_file, dir):
       command = tnet.readbytes(in_file)
     except EOFError:
       break  # no more
-    log('%r', command)
+    #log('%r', command)
 
     try:
       name = tnet.readbytes(in_file)
@@ -285,25 +298,23 @@ def _UnpackTree(in_file, dir):
 
     if command == '>':
       if name:
-        log('> %s', name)
+        #log('> %s', name)
         _MakeOneDir(name)
         os.chdir(name)
       else:
-        log('BEGIN')
+        #log('BEGIN')
+        pass
+
       v.Push()
       level += 1
       #to_verify.append([])
 
     elif command == '<':
-      # TODO:
-      # - parse line
-      # - chmod
-      # - verify checksums
-      log('<')
+      #log('<')
       v.Pop(contents)
       level -= 1
       if level == 0:
-        log('DONE')
+        #log('DONE')
         break
 
       # NOTE: special last case: if you're at /, this will just put you back at
@@ -311,7 +322,7 @@ def _UnpackTree(in_file, dir):
       os.chdir('..')
 
     elif command == 'F':
-      log('F %s', name)
+      #log('F %s', name)
       # TODO: stream it
       with open(name, 'w') as f:
         f.write(contents)
@@ -319,7 +330,7 @@ def _UnpackTree(in_file, dir):
       v.OnEntry(contents)
 
     elif command == 'L':
-      log('L %s', name)
+      #log('L %s', name)
       try:
         os.symlink(contents, name)
       except OSError, e:
@@ -336,7 +347,9 @@ def _UnpackTree(in_file, dir):
   except EOFError:
     raise RuntimeError('Expected root checksum, got EOF')
 
-  log('%s ok', root_checksum)
+  #log('%s ok', root_checksum)
+  # if we get a checksum on stdout, that means it's OK.
+  print root_checksum
 
 
 def main(argv):
