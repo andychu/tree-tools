@@ -189,8 +189,7 @@ def _PackTree(prefix, dir, outf, indent=0):
       obj = _PackTree(prefix, rel_path, outf, indent+1)
 
       outf.write(tnet.dump_line('<'))  # pop
-      outf.write(tnet.dump_line(''))
-      outf.write(tnet.dump_line(obj))  # checksums, etc.
+      _WriteObj(outf, name, obj)
 
       # pop here: write out checksums, permissions, type
       node_type = 'D'
@@ -231,9 +230,14 @@ def PackTree(d, outf):
 
   # TODO: header?  Or maybe the trailer is all I need.
 
+  # to balance < and >, the top level has no name.
+  outf.write(tnet.dump_line('>'))  # push
+  outf.write(tnet.dump_line(''))
+  outf.write(tnet.dump_line(''))  # no contents
+
   obj = _PackTree(d, '', outf)
 
-  outf.write(tnet.dump_line('.'))  # last record: current dir
+  outf.write(tnet.dump_line('<'))  # last record: current dir
   _WriteObj(outf, '', obj)
 
   # TODO: write out
@@ -259,6 +263,24 @@ def _MakeOneDir(dir):
       raise
 
 
+def _FinishDir(contents):
+  """chmod and verify.
+
+  Raises:
+    RuntimeError on any verification errors.
+  """
+  log('chmod and verify %s', contents)
+  for line in contents.splitlines():
+    print repr(line)
+    # name can have spaces in it
+    mode, expected_type, expected_sum, name = line.split(None, 3)
+    print mode
+    print expected_type
+    print expected_sum
+    print name
+
+
+
 def _UnpackTree(in_file, dir):
   # algorithm:
   # 1. in a single pass, extract all the content to /_dfo-tmp/<sha1>, and
@@ -279,12 +301,18 @@ def _UnpackTree(in_file, dir):
   log('chdir %s', dir)
   os.chdir(dir)  # everything is relative to this dir
 
+  # we verify one dir at at time
+  # (actual name, actual checksum) pairs.
+  # this needs a cursor?
+  to_verify = []
+
+  # TODO: better termination condition?
   while True:
     try:
       command = tnet.readbytes(in_file)
     except EOFError:
       break  # no more
-    #print repr(command)
+    log('%r', command)
 
     try:
       name = tnet.readbytes(in_file)
@@ -299,24 +327,31 @@ def _UnpackTree(in_file, dir):
     #print repr(contents)
 
     if command == '>':
-      log('> %s', name)
-      _MakeOneDir(name)
-      os.chdir(name)
+      if name:
+        log('> %s', name)
+        _MakeOneDir(name)
+        os.chdir(name)
+      else:
+        log('BEGIN')
+      #to_verify.append([])
+
     elif command == '<':
       # TODO:
       # - parse line
       # - chmod
       # - verify checksums
       log('<')
+      _FinishDir(contents)
+
+      # NOTE: special last case: if you're at /, this will just put you back at
+      # /?
       os.chdir('..')
-    elif command == '.':
-      log('. at end')
-      # TODO: parse/chmod/verify
 
     elif command == 'F':
       log('F %s', name)
       with open(name, 'w') as f:
         f.write(contents)
+
     elif command == 'L':
       log('L %s', name)
       try:
