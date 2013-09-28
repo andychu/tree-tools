@@ -215,13 +215,14 @@ def PackTree(d, outf):
   # TODO: header?  Or maybe the trailer is all I need.
   # Header is where you would put a version number.
 
-  # To balance < and >, the top level has no name.
-  _WritePair(outf, '>', '')
+  # First record is always '> .', and last one is always '< .'.  Period is not
+  # a valid dir name, so it can be used.
+  _WritePair(outf, '>', '.')
   outf.write(tnet.dump_line(''))  # no contents
 
   obj, node_count = _PackTree(d, '', outf)
 
-  _WritePair(outf, '<', '')  # no name
+  _WritePair(outf, '<', '.')
   outf.write(tnet.dump_line(obj))
 
   # Write out final checksum in trailer.
@@ -351,32 +352,23 @@ def _UnpackTree(in_file, dir):
     actual_checksum = c.hexdigest()
 
     if command == '>':
-      if name:
-        #log('> %s', name)
+      if name != '.':  # first record is '.'
         _MakeOneDir(name)
         os.chdir(name)
-      else:
-        # This is the first one
-        #log('BEGIN')
-        pass
 
       v.Push()
       level += 1
-      #to_verify.append([])
 
     elif command == '<':
-      #log('<')
       v.Pop(contents)  # pass expected checksums and permissions to verify
       v.OnEntry(name, actual_checksum)  # add this dir entry
 
       level -= 1
       if level == 0:
-        #log('DONE')
         break
 
-      # NOTE: special last case: if you're at /, this will just put you back at
-      # /?
-      os.chdir('..')
+      if name != '.':
+        os.chdir('..')
 
     elif command == 'F':
       #log('F %s', name)
