@@ -2,8 +2,10 @@
 #
 # multi-test.sh
 
+readonly this_dir=$(cd $(dirname $0) && pwd)
+
 multi() {
-  bin/multi.py "$@"
+  $this_dir/multi.py "$@"
 }
 
 readonly TEST_DIR=_tmp/multi-test
@@ -31,6 +33,23 @@ EOF
 
   # TODO: verify that Auto still has executable permissions.  This was a bug.
   tree -p _tmp/
+}
+
+
+# NOTE: there is no source.  We have to "cd" to do that?
+
+test-mv() {
+  mkdir -p $TEST_DIR/mv
+  rm -rf $TEST_DIR/mv
+
+  # setup
+  echo Auto AA | multi cp $TEST_DIR/mv/src
+  tree _tmp
+
+  # NOTE: This doesn't work because we moved the file
+  # We may want to preserve the dir structure too.
+  cd $TEST_DIR/mv/src && find . -type f | multi mv $TEST_DIR/mv/dest
+  tree _tmp
 }
 
 # This fails because we passed --no-force to override.
