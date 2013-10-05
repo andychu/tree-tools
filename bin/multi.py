@@ -23,7 +23,6 @@ Input syntax:
 
 # TODO:
 #
-# - implement ln and mv in-process
 # - Accept copy, move, link for readability?  Yes, it's like GNU long options.
 # - implement --force and --dereference
 #   --force defaults to yes or no?
@@ -55,7 +54,6 @@ def log(msg, *args):
   print >>sys.stderr, 'multi:', msg
 
 
-
 def RemoveDupes(pairs):
   # sort by the destination
   return sorted(set(pairs), key=lambda p: p[1])
@@ -77,6 +75,44 @@ def MultiTar(pairs, dest):
   t.close()
 
   log('Wrote %s', dest)
+  return 0  # exit code
+
+
+def MultiMv(pairs, dest_base):
+  """Move sets of any kind of file (including devices.)"""
+  maker = DirMaker()
+
+  input_files = []
+  i = 0
+  for source, rel_dest in pairs:
+    log('%s -> %s', source, rel_dest)
+    source = os.path.abspath(source)
+    dest = JoinPath(dest_base, rel_dest)
+    maker.mkdir(os.path.dirname(dest))
+
+    os.rename(source, dest)
+    i += 1
+
+  log('moved %d files', i)
+  return 0  # exit code
+
+
+def MultiLn(pairs, dest_base, force=False):
+  """Create links to sets of any kind of file (including devices.)"""
+  maker = DirMaker()
+
+  input_files = []
+  i = 0
+  for source, rel_dest in pairs:
+    log('%s -> %s', source, rel_dest)
+    source = os.path.abspath(source)
+    dest = JoinPath(dest_base, rel_dest)
+    maker.mkdir(os.path.dirname(dest))
+
+    _MakeLink(source, dest, force=force)
+    i += 1
+
+  log('linked %d files', i)
   return 0  # exit code
 
 
@@ -147,91 +183,6 @@ class CopyHandler(object):
     _MakeLink(target, dest, self.force)
 
 
-class LinkHandler(object):
-  """Symlink files, dirs.
-
-  TODO: links could have an optimization to dereference the target?
-  """
-  def __init__(self, dest_base, force=False):
-    self.dest_base = dest_base
-    self.maker = DirMaker()
-    self.force = force
-
-  def _Link(self, source, rel_dest):
-    # for symlinks, resolve the symlink target with respect to the current
-    # working directory.
-    #
-    # This lets us do something like 'echo Auto | multi ln some/other/dir'
-    # We don't have to specify $PWD/Auto.
-    #
-    # NOTE: Would it be possible to calculate relative symlinks?
-    # Instead of 
-    #
-    # _tmp/poly/dev/treemap -> /home/andy/hg/treemap/_tmp/app
-    #
-    # It would be nicer to have
-    #
-    # _tmp/poly/dev/treemap -> ../../app
-
-    source = os.path.abspath(source)
-    dest = JoinPath(self.dest_base, rel_dest)
-    self.maker.mkdir(os.path.dirname(dest))
-
-    _MakeLink(source, dest, self.force)
-
-  def OnFile(self, source, rel_dest):
-    self._Link(source, rel_dest)
-
-  def OnDir(self, source, rel_dest):
-    self._Link(source, rel_dest)
-
-  def OnLink(self, source, rel_dest):
-    self._Link(source, rel_dest)
-
-
-class MoveHandler(object):
-  """Move list of files, dirs, and symlinks.
-
-  TODO:
-  What happens when you overwrite?
-  """
-
-  def __init__(self, dest_base):
-    self.dest_base = dest_base
-    self.maker = DirMaker()
-
-  def _Move(self, source, rel_dest):
-    # for symlinks, resolve the symlink target with respect to the current
-    # working directory.
-    #
-    # This lets us do something like 'echo Auto | multi ln some/other/dir'
-    # We don't have to specify $PWD/Auto.
-    #
-    # NOTE: Would it be possible to calculate relative symlinks?
-    # Instead of 
-    #
-    # _tmp/poly/dev/treemap -> /home/andy/hg/treemap/_tmp/app
-    #
-    # It would be nicer to have
-    #
-    # _tmp/poly/dev/treemap -> ../../app
-
-    source = os.path.abspath(source)
-    dest = JoinPath(self.dest_base, rel_dest)
-    self.maker.mkdir(os.path.dirname(dest))
-
-    os.rename(source, dest)
-
-  def OnFile(self, source, rel_dest):
-    self._Move(source, rel_dest)
-
-  def OnDir(self, source, rel_dest):
-    self._Move(source, rel_dest)
-
-  def OnLink(self, source, rel_dest):
-    self._Move(source, rel_dest)
-
-
 def Dispatch(pairs, handler):
   """Read input files and pass them to a handler."""
 
@@ -256,7 +207,7 @@ def Dispatch(pairs, handler):
       raise Error("Can only handle files, dirs, and symlinks: %r" % source)
 
   # TODO: put the action there
-  log('copied %d files, %d dirs, %d links', num_files, num_dirs, num_links)
+  log('processed %d files, %d dirs, %d links', num_files, num_dirs, num_links)
   # TODO: fix
   log('num mkdir syscalls: %d', handler.maker.num_mkdir)
 
@@ -345,7 +296,6 @@ def main(argv):
 
   pairs = RemoveDupes(pairs)
 
-
   # TODO:
   # - switch to docopt
   # - the default should be a more efficient internal version
@@ -355,17 +305,15 @@ def main(argv):
 
   if action == 'tar':
     return MultiTar(pairs, dest_base)
+  elif action == 'mv':
+    return MultiMv(pairs, dest_base)
+  elif action == 'ln':
+    return MultiLn(pairs, dest_base)
   elif action == 'cp':
     # TODO: parse --force.  cp has it true by default, and has --no-clobber to
     # turn it off.  Hm.  I think maybe mine should be false.
     # Have to test 2 cases: symlinks and files.
     copy = CopyHandler(dest_base, force=True)
-    return Dispatch(pairs, copy)
-  elif action == 'mv':
-    move = MoveHandler(dest_base)
-    return Dispatch(pairs, move)
-  elif action == 'ln':
-    copy = LinkHandler(dest_base, force=True)
     return Dispatch(pairs, copy)
   else:
     raise AssertionError('Invalid action %r' % action)
