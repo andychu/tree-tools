@@ -36,6 +36,11 @@ Input syntax:
 # I mean there is stuff like --interactive.  and recursive copy.  hm.
 
 
+# BUGS:
+# - Copying a file over itself raises an exception -- should be caught.
+#   - e.g. echo foo | multi cp .
+
+
 import errno
 import os
 import shutil
