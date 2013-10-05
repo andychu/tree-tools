@@ -8,6 +8,10 @@ multi() {
   $this_dir/multi.py "$@"
 }
 
+invalid() {
+  multi foo dest
+}
+
 readonly TEST_DIR=_tmp/multi-test
 
 test-cp() {
@@ -43,10 +47,14 @@ test-mv() {
   rm -rf $TEST_DIR/mv
 
   # setup
-  echo Auto AA | multi cp $TEST_DIR/mv/src
+  echo Auto deep/dir/Auto | multi cp $TEST_DIR/mv/src
   tree _tmp
 
-  # NOTE: This doesn't work because we moved the file
+  # NOTE: What if we move the directory out from under a file?  Should we only
+  # be allowed to move files and empty dirs?
+  # We want this to be fast.  So we should be able to move dirs.  But in the
+  # "prune" case, we are going to move files.
+
   # We may want to preserve the dir structure too.
   cd $TEST_DIR/mv/src && find . -type f | multi mv $TEST_DIR/mv/dest
   tree _tmp
