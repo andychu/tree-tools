@@ -30,11 +30,6 @@ Input syntax:
 #
 # The usage isn't right, we haven't implemented [source-prefix].  I should use
 # docopt to fix this.
-#
-# Should we keep the ShellOut?  probably not... unless there are some obscure
-# flags we need.
-# I mean there is stuff like --interactive.  and recursive copy.  hm.
-
 
 # BUGS:
 # - Copying a file over itself raises an exception -- should be caught.
@@ -61,47 +56,6 @@ def log(msg, *args):
 
 
 
-def ShellOut(action, pairs, dest_base, extra_argv):
-  """
-  Slower implementation.  Do I need this?
-  """
-  #if action == 'cp':
-  #  extra_argv = opts['<cp-arg>']
-  #elif action == 'mv':
-  #  extra_argv = opts['<mv-arg>']
-  #elif action == 'cp':
-  #  extra_argv = opts['<cp-arg>']
-  #else:
-  #  raise AssertionError(action)
-
-  # For now we buffer all input
-  for (src, dest) in pairs:
-    d = os.path.join(dest_base, dest)
-
-    # cp doesn't copy directories, so we should make them.
-    # 'find' output often includes directories.
-    if action == 'cp' and os.path.isdir(src):
-      try:
-        os.makedirs(d)
-      except OSError, e:
-        if e.errno != errno.EEXIST:
-          raise
-      continue
-
-    # TODO: Do this more efficiently.
-    m = ['mkdir', '-p', os.path.dirname(d)]
-    #log('YAH\t$ %s', m)
-    exit_code = subprocess.call(m)
-    if exit_code != 0:
-      raise Error('%s failed with code %s' % (argv, exit_code))
-
-    argv = [action, '--force'] + extra_argv + [src, d]
-    #log('\t$ %s', argv)
-    exit_code = subprocess.call(argv)
-    if exit_code != 0:
-      raise Error('%s failed with code %s' % (argv, exit_code))
-
-
 def RemoveDupes(pairs):
   # sort by the destination
   return sorted(set(pairs), key=lambda p: p[1])
@@ -124,6 +78,20 @@ def MultiTar(pairs, dest):
 
   log('Wrote %s', dest)
   return 0  # exit code
+
+
+# We have to use normpath because find output gives us stuff like:
+#
+# ./deep/dir
+#
+# And we don't want
+# 
+# dest/./deep/dir paths.
+# 
+# This messes up the DirMaker recursion.
+
+def JoinPath(base, rel):
+  return os.path.normpath(os.path.join(base, rel))
 
 
 def _MakeLink(target, dest, force):
@@ -159,7 +127,7 @@ class CopyHandler(object):
     # TODO: may not want to allow dest to be an absolute path.  This violates
     # an invariant.
 
-    dest = os.path.join(self.dest_base, rel_dest)
+    dest = JoinPath(self.dest_base, rel_dest)
     self.maker.mkdir(os.path.dirname(dest))
 
     # NOTE: Permission bits are copied, but not stuff like mod time, which is
@@ -168,12 +136,12 @@ class CopyHandler(object):
 
   def OnDir(self, source, rel_dest):
     # make the dir
-    dest = os.path.join(self.dest_base, rel_dest)
+    dest = JoinPath(self.dest_base, rel_dest)
     self.maker.mkdir(dest)
 
   def OnLink(self, source, rel_dest):
     target = os.readlink(source)
-    dest = os.path.join(self.dest_base, rel_dest)
+    dest = JoinPath(self.dest_base, rel_dest)
     self.maker.mkdir(os.path.dirname(dest))
 
     _MakeLink(target, dest, self.force)
@@ -206,7 +174,7 @@ class LinkHandler(object):
     # _tmp/poly/dev/treemap -> ../../app
 
     source = os.path.abspath(source)
-    dest = os.path.join(self.dest_base, rel_dest)
+    dest = JoinPath(self.dest_base, rel_dest)
     self.maker.mkdir(os.path.dirname(dest))
 
     _MakeLink(source, dest, self.force)
@@ -219,6 +187,49 @@ class LinkHandler(object):
 
   def OnLink(self, source, rel_dest):
     self._Link(source, rel_dest)
+
+
+class MoveHandler(object):
+  """Move list of files, dirs, and symlinks.
+
+  TODO:
+  What happens when you overwrite?
+  """
+
+  def __init__(self, dest_base):
+    self.dest_base = dest_base
+    self.maker = DirMaker()
+
+  def _Move(self, source, rel_dest):
+    # for symlinks, resolve the symlink target with respect to the current
+    # working directory.
+    #
+    # This lets us do something like 'echo Auto | multi ln some/other/dir'
+    # We don't have to specify $PWD/Auto.
+    #
+    # NOTE: Would it be possible to calculate relative symlinks?
+    # Instead of 
+    #
+    # _tmp/poly/dev/treemap -> /home/andy/hg/treemap/_tmp/app
+    #
+    # It would be nicer to have
+    #
+    # _tmp/poly/dev/treemap -> ../../app
+
+    source = os.path.abspath(source)
+    dest = JoinPath(self.dest_base, rel_dest)
+    self.maker.mkdir(os.path.dirname(dest))
+
+    os.rename(source, dest)
+
+  def OnFile(self, source, rel_dest):
+    self._Move(source, rel_dest)
+
+  def OnDir(self, source, rel_dest):
+    self._Move(source, rel_dest)
+
+  def OnLink(self, source, rel_dest):
+    self._Move(source, rel_dest)
 
 
 def Dispatch(pairs, handler):
@@ -280,7 +291,6 @@ class DirMaker(object):
       return
     self.made[path] = True
 
-    #print 'mkdir', path, self.num_mkdir
     try:
       self.num_mkdir += 1
       os.mkdir(path)
@@ -305,6 +315,10 @@ def main(argv):
     dest_base = argv[2]
   except IndexError:
     raise Error(__doc__)
+
+  # Check before we read from stdin.
+  if action not in ('tar', 'cp', 'mv', 'ln'):
+    raise Error('Invalid action %r' % action)
 
   pairs = []
   for line in sys.stdin:
@@ -347,11 +361,14 @@ def main(argv):
     # Have to test 2 cases: symlinks and files.
     copy = CopyHandler(dest_base, force=True)
     return Dispatch(pairs, copy)
+  elif action == 'mv':
+    move = MoveHandler(dest_base)
+    return Dispatch(pairs, move)
   elif action == 'ln':
     copy = LinkHandler(dest_base, force=True)
     return Dispatch(pairs, copy)
   else:
-    ShellOut(action, pairs, dest_base, extra_argv)
+    raise AssertionError('Invalid action %r' % action)
 
   return 0
 
