@@ -13,6 +13,8 @@ create() {
   echo "baz contents" > bar/baz
   chmod +x bar/baz
 
+  mkdir -p empty-dir
+
   echo "filename with space contents" > 'bar/filename with space'
 
   echo "spam contents" > spam
