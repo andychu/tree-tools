@@ -224,7 +224,8 @@ def _PackTree(prefix, dir, outf):
     rec = (p, node_type, checksum, name)
     this_dir.append('%s %s %s %s' % rec)  # octal perms
 
-  return '\n'.join(this_dir) + '\n', this_count
+  dir_obj = ''.join(['%s\n' % d for d in this_dir])
+  return dir_obj, this_count
 
 
 def PackTree(d, outf):
@@ -291,7 +292,8 @@ class Verifier(object):
       try:
         exec_bit, type, expected_checksum, name = line.split(' ', 3)
       except ValueError:
-        raise RuntimeError('Invalid directory entry %r' % line)
+        raise RuntimeError(
+            'Invalid directory entry %r in object %r' % (line, dir_obj))
       expected.append((name, expected_checksum))
 
       if exec_bit == 'x':
