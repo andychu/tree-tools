@@ -97,7 +97,7 @@ def MultiMv(pairs, dest_base):
   return 0  # exit code
 
 
-def MultiLn(pairs, dest_base, force=False):
+def MultiLn(pairs, dest_base, force=True):
   """Create links to sets of any kind of file (including devices.)"""
   maker = DirMaker()
 
