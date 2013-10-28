@@ -98,7 +98,14 @@ def MultiMv(pairs, dest_base):
 
 
 def MultiLn(pairs, dest_base, force=True):
-  """Create links to sets of any kind of file (including devices.)"""
+  """Create links to sets of any kind of file (including devices.)
+
+  Args:
+    force: whether to overwrite old files.
+       TODO: This should be false by default?  It's only on because some
+       AppBuild files produce duplicate entries, e.g.
+       polyweb/app_root/examples/container/AppBuild.
+  """
   maker = DirMaker()
 
   input_files = []
