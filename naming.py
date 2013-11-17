@@ -18,8 +18,13 @@ class Error(Exception):
 DIGITS = string.ascii_letters + '3'
 
 # nonstandard: have vowels here?
+# hard to read
 B32_DIGITS = string.ascii_lowercase + 'AEIOUY'
 
+# ugly
+B32_DIGITS = string.ascii_lowercase + '=+:.;/'
+
+# standard
 B32_DIGITS = string.ascii_lowercase + '234567'
 
 
