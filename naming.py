@@ -72,6 +72,22 @@ def main(argv):
 
   # don't like / or + right now.
 
+  # base  ratio
+  # 16    1:2 16^2 == 256^1                   256^(1/2)
+  # 41    2:3                                 256^(2/3)
+  # 64    3:4 64^4 == 256^3 == 16,777,216     256^(3/4)
+  # 85    4:5 (4 chars to 5)  85^5   2^32 =   256^(4/5)
+  #
+  # 5/6 = 102 -- only 92 printable characters
+  # 5/7 = 53.  Because sha1 divides into 4 groups of 5 bytes.  28+3 seps = 31 bytes.  more readable than 40.
+  #   base64 would be 29 bytes, vs 31 bytes.  Probably worth it.
+  # 5/8 = base32 exactly
+
+  # 53 is alpha+alpha.  And maybe 0 digit?  That is different than 0.
+  # you could leave out 1 and l.
+
+  # 10/13: base 72
+
   return 0
 
 
