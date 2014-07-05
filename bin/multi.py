@@ -1,11 +1,8 @@
 #!/usr/bin/python -S
-"""Copy, move, link, or tar files in a batch.
+"""Copy, move, link, or touch files in a batch.
 
-Usage:
-  multi cp [<source-prefix>] [<dest-prefix>] [ -- <cp-arg>... ]
-  multi mv [<source-prefix>] [<dest-prefix>] [ -- <mv-arg>... ]
-  multi ln [<source-prefix>] [<dest-prefix>] [ -- <ln-arg>... ]
-  multi tar [<dest-file>]
+A difference vs. doing find | xargs [cp/mv] is that we make the parent
+directories.
 
 Examples:
 
@@ -19,6 +16,18 @@ Input syntax:
 
     App App.backup       # move App -> App.backup
     Tests                # move Tests -> Tests
+
+LHS
+  Path relative to current dir, or absolute path.
+
+RHS
+  Path relative to destination base (which defaults to current dir), or
+  absolute path.  
+  NOTE: With multi ln, when --relative is passed, the symlink target is
+  relative to the symlink itself.
+
+cp is different in that it duplicates the symlink literally, rather than
+derefrencing it and copying contents.
 """
 
 # TODO:
@@ -119,12 +128,20 @@ def MultiLn(pairs, dest_base, force=True, relative=False):
   i = 0
   for source, rel_dest in pairs:
     log('%s -> %s', source, rel_dest)
+    # TODO: what if input contains ../../ ?
     source = os.path.abspath(source)
     dest = JoinPath(dest_base, rel_dest)
     maker.mkdir(os.path.dirname(dest))
     #log('%s => %s', source, dest)
 
     # TODO: handle --relative
+    # Algorithm:
+    #
+    # Turn both into absolute paths?  Using cwd?
+    # Then find common prefix
+    # Then calculate distance from common prefix to RHS (number of ../../../)
+    # prepend that to the relative part
+
     _MakeLink(source, dest, force=force)
     i += 1
 
@@ -196,6 +213,7 @@ class CopyHandler(object):
     dest = JoinPath(self.dest_base, rel_dest)
     self.maker.mkdir(os.path.dirname(dest))
 
+    # Make the same symlink.
     _MakeLink(target, dest, self.force)
 
 
@@ -209,7 +227,7 @@ def Dispatch(pairs, handler):
   for (source, dest) in pairs:
     # lstat so we don't dereference symlinks.
     mode = os.lstat(source).st_mode
-    # NOTE: test for link should come first
+    # NOTE: test for link has to come first.
     if stat.S_ISLNK(mode):
       handler.OnLink(source, dest)
       num_links += 1
@@ -281,11 +299,14 @@ multi [options] cp DEST
        multi [options] touch DEST\
 """
 # The first 3 take pairs.  The 'touch' takes a file of paths.
+# NOTE: Not advertising 'tar' because we generally don't want to use tar.
 
 # -n / --preview: makes sense for all
 # --force : makes sense for all
 #   - it's the default now.  --no-force would be the opposite.
 # --parents: is the default, don't need it
+# -q / --quiet: don't print the summary at the end?
+# -s: source prefix.  Will I ever use it?
 
 def Options():
   """Returns an option parser instance."""
