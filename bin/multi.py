@@ -312,14 +312,17 @@ def main(argv):
 
   try:
     action = argv[1]
-    dest_base = argv[2]
   except IndexError:
-    o.print_help()
-    raise Error()
+    raise Error('Action required')
 
   # Check before we read from stdin.
   if action not in ('tar', 'cp', 'mv', 'ln'):
     raise Error('Invalid action %r' % action)
+
+  try:
+    dest_base = argv[2]
+  except IndexError:
+    raise Error('Destination required')
 
   pairs = []
   for line in sys.stdin:
