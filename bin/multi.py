@@ -170,7 +170,7 @@ def MultiLn(pairs, dest_base, force=True, relative=False):
     if relative:
       # source is absolute.  dest must be made absolute, since dest_base may
       # have been relative.
-      dest = os.path.abspath(dset)
+      dest = os.path.abspath(dest)
       rel_source = RelativePath(source, dest)
       _MakeLink(rel_source, dest, force=force)
       log('%s -> %s', rel_source, dest)
