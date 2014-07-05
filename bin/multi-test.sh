@@ -2,14 +2,18 @@
 #
 # multi-test.sh
 
+. ~/hg/taste/taste.sh
+
+# Bug: $0 changes when called by taste _gen.sh.
 readonly this_dir=$(cd $(dirname $0) && pwd)
 
 multi() {
   $this_dir/multi.py "$@"
 }
 
-invalid() {
+test-invalid() {
   multi foo dest
+  expect $? -eq 1
 }
 
 readonly TEST_DIR=_tmp/multi-test
@@ -117,5 +121,4 @@ EOF
   tree $TEST_DIR
 }
 
-"$@"
-
+taste-main "$@"
