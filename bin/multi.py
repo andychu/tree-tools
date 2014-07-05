@@ -324,6 +324,10 @@ def main(argv):
   except IndexError:
     raise Error('Destination required')
 
+  # Since there are so few options, we can validate these manually.
+  if opts.relative and action != 'ln':
+    raise Error("-r / --relative can't be used with %r" % action)
+
   pairs = []
   for line in sys.stdin:
     # allow comments and blank lines in specs.
