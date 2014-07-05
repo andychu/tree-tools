@@ -112,6 +112,32 @@ def MultiMv(pairs, dest_base):
   return 0  # exit code
 
 
+def RelativePath(left, right):
+  """
+  Given two absolute paths, calculate the path of 'left' relative to right.
+  Note that this is always possible since / is a common root.
+  """
+  assert os.path.isabs(left) 
+  assert os.path.isabs(right) 
+
+  parts1 = left.split(os.sep)
+  parts2 = right.split(os.sep)
+
+  # n is the number of common parts 
+  n = 0
+  for p1, p2 in zip(parts1, parts2):
+    if p1 != p2:
+      break
+    n += 1
+
+  num_up = len(parts2) - n - 1
+
+  rel_parts = ['..'] * num_up
+  rel_parts.extend(parts1[n:])
+
+  return '/'.join(rel_parts)
+
+
 def MultiLn(pairs, dest_base, force=True, relative=False):
   """Create links to sets of any kind of file (including devices.)
 
@@ -127,7 +153,6 @@ def MultiLn(pairs, dest_base, force=True, relative=False):
   input_files = []
   i = 0
   for source, rel_dest in pairs:
-    log('%s -> %s', source, rel_dest)
     # TODO: what if input contains ../../ ?
     source = os.path.abspath(source)
     dest = JoinPath(dest_base, rel_dest)
@@ -142,7 +167,16 @@ def MultiLn(pairs, dest_base, force=True, relative=False):
     # Then calculate distance from common prefix to RHS (number of ../../../)
     # prepend that to the relative part
 
-    _MakeLink(source, dest, force=force)
+    if relative:
+      # source is absolute.  dest must be made absolute, since dest_base may
+      # have been relative.
+      dest = os.path.abspath(dset)
+      rel_source = RelativePath(source, dest)
+      _MakeLink(rel_source, dest, force=force)
+      log('%s -> %s', rel_source, dest)
+    else:
+      _MakeLink(source, dest, force=force)
+      log('%s -> %s', source, dest)
     i += 1
 
   log('linked %d files', i)
@@ -150,14 +184,13 @@ def MultiLn(pairs, dest_base, force=True, relative=False):
 
 
 # We have to use normpath because find output gives us stuff like:
-#
-# ./deep/dir
-#
-# And we don't want
-# 
-# dest/./deep/dir paths.
+#   ./deep/dir
+# And we don't want:
+#   dest/./deep/dir paths.
 # 
 # This messes up the DirMaker recursion.
+# 
+# normpath does not make a path absolute.
 
 def JoinPath(base, rel):
   return os.path.normpath(os.path.join(base, rel))
