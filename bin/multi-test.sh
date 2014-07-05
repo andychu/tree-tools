@@ -18,20 +18,46 @@ test-invalid() {
 
 readonly TEST_DIR=_tmp/multi-test
 
-test-cp() {
-  set -o errexit
-
-  rm -rf $TEST_DIR  # TODO: shell framework needs functions for this
-
+test-cp-simple() {
+  # TODO: taste needs functions for a per test case dir.  Set an enviroment
+  # variable?
+  rm -rf $TEST_DIR
   mkdir -p $TEST_DIR/cp1
+
+  # Copy a single file
   echo Auto AA | multi cp $TEST_DIR/cp1
 
+  find $TEST_DIR/cp1 >$TEST_DIR/manifest
+
+  check_file_eq_stdin $TEST_DIR/manifest <<EOF
+_tmp/multi-test/cp1
+_tmp/multi-test/cp1/AA
+EOF
+}
+
+test-cp-with-subdir() {
   mkdir -p $TEST_DIR/cp2
+
+  # Copy a file, and make sure subdir foo is made.
   multi cp $TEST_DIR/cp2 <<EOF
 Auto
 Tree.cfg foo/TT
 EOF
 
+  # %M means print permission bits in symbolic form.
+  find $TEST_DIR/cp2 -printf "%M %P\n" >$TEST_DIR/manifest
+
+  # Verify that Auto still has executable permissions.  This was a bug.
+
+  check_file_eq_stdin $TEST_DIR/manifest <<EOF
+drwxrwxr-x 
+-rwxr-xr-x Auto
+drwxrwxr-x foo
+-rw-r--r-- foo/TT
+EOF
+}
+
+test-cp-with-symlink() {
   mkdir -p $TEST_DIR/cp3
   touch $TEST_DIR/cp3/file
   mkdir -p $TEST_DIR/cp3/dir
@@ -39,10 +65,11 @@ EOF
 
   find $TEST_DIR/cp3 | multi cp $TEST_DIR/cp4
 
-  # TODO: verify that Auto still has executable permissions.  This was a bug.
-  tree -p _tmp/
-}
+  tree -p $TEST_DIR/cp4
 
+  # TODO: assert that we still have a symlink here
+  find $TEST_DIR/cp4 -ls
+}
 
 # NOTE: there is no source.  We have to "cd" to do that?
 
