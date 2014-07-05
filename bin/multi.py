@@ -27,8 +27,13 @@ Input syntax:
 # - implement --force and --dereference
 #   --force defaults to yes or no?
 #
-# The usage isn't right, we haven't implemented [source-prefix].  I should use
-# docopt to fix this.
+# The usage isn't right, we haven't implemented [source-prefix].
+#
+# Force people to pass empty source or not?
+# multi cp '' /some/dest
+#
+# - multi touch <dest>
+#   - for app bundle definition, e.g. special/tmp, special/dev/null
 
 # BUGS:
 # - Copying a file over itself raises an exception -- should be caught.
@@ -36,6 +41,7 @@ Input syntax:
 
 
 import errno
+import optparse
 import os
 import shutil
 import subprocess
@@ -264,15 +270,52 @@ class DirMaker(object):
       else:
         raise  # permission errors, etc.
 
+USAGE = """\
+multi [options] cp DEST
+       multi [options] mv DEST
+       multi [options] ln DEST
+
+       multi [options] touch DEST\
+"""
+# The first 3 take pairs.  The 'touch' takes a file of paths.
+
+# -n / --preview: makes sense for all
+# --force : makes sense for all
+#   - it's the default now.  --no-force would be the opposite.
+# --parents: is the default, don't need it
+
+def Options():
+  """Returns an option parser instance."""
+  # TODO: where to get version number from?
+  p = optparse.OptionParser(USAGE, version='0.1')
+  p.add_option(
+      '-v', '--verbose', dest='verbose', action='store_true', default=False,
+      help='Show verbose log messages')
+
+  # This is used to control the help output.  The API is a little weird since
+  # you pass p and then register with p.
+  g = optparse.OptionGroup(p, "Flags specific to 'ln'", '')
+  g.add_option(
+      '-r', '--relative', dest='relative', action='store_true', default=False,
+      help='Make symlinks with relative paths where possible (../.. '
+           'target syntax)')
+
+  p.add_option_group(g)
+  return p
+
 
 def main(argv):
   """Returns an exit code."""
+
+  o = Options()
+  (opts, argv) = o.parse_args(argv)
 
   try:
     action = argv[1]
     dest_base = argv[2]
   except IndexError:
-    raise Error(__doc__)
+    o.print_help()
+    raise Error()
 
   # Check before we read from stdin.
   if action not in ('tar', 'cp', 'mv', 'ln'):
@@ -332,5 +375,6 @@ if __name__ == '__main__':
   try:
     sys.exit(main(sys.argv))
   except Error, e:
-    print >>sys.stderr, 'multi: ' + e.args[0]
+    if e.args:
+      print >>sys.stderr, 'multi:', e.args[0]
     sys.exit(1)
