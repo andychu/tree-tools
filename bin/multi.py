@@ -103,7 +103,7 @@ def MultiMv(pairs, dest_base):
   return 0  # exit code
 
 
-def MultiLn(pairs, dest_base, force=True):
+def MultiLn(pairs, dest_base, force=True, relative=False):
   """Create links to sets of any kind of file (including devices.)
 
   Args:
@@ -111,6 +111,7 @@ def MultiLn(pairs, dest_base, force=True):
        TODO: This should be false by default?  It's only on because some
        AppBuild files produce duplicate entries, e.g.
        polyweb/app_root/examples/container/AppBuild.
+    relative: whether to maek relative symlinks
   """
   maker = DirMaker()
 
@@ -121,7 +122,9 @@ def MultiLn(pairs, dest_base, force=True):
     source = os.path.abspath(source)
     dest = JoinPath(dest_base, rel_dest)
     maker.mkdir(os.path.dirname(dest))
+    #log('%s => %s', source, dest)
 
+    # TODO: handle --relative
     _MakeLink(source, dest, force=force)
     i += 1
 
@@ -364,7 +367,7 @@ def main(argv):
   elif action == 'mv':
     return MultiMv(pairs, dest_base)
   elif action == 'ln':
-    return MultiLn(pairs, dest_base)
+    return MultiLn(pairs, dest_base, force=True, relative=opts.relative)
   elif action == 'cp':
     # TODO: parse --force.  cp has it true by default, and has --no-clobber to
     # turn it off.  Hm.  I think maybe mine should be false.

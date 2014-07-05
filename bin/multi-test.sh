@@ -132,13 +132,35 @@ test-empty-dir-made() {
 
 test-ln() {
   set -o errexit
+  rm -rf $TEST_DIR
 
-  rm -rf $TEST_DIR  # TODO: shell framework needs functions for this
-
+  # Test file, dir, and different name.
   multi ln $TEST_DIR/ln1 <<EOF
 Auto
 bin
 Package foo
+EOF
+
+  # TODO: use "ftree" and assert output here.  It should have no lines so the
+  # output is easier to type.
+  #
+  # ptree is for processes.
+  tree $TEST_DIR
+}
+
+# TODO: Fix and test this case:
+# $PWD/Auto by itself on a line doesn't make sense because you would try to
+# copy or move it over itself.  You need the second thing.
+
+test-ln-relative() {
+  set -o errexit
+  rm -rf $TEST_DIR
+
+  # Test file, dir, and different name.
+  multi ln --relative $TEST_DIR/ln2 <<EOF
+$PWD/Auto Auto
+$PWD/bin bin
+$PWD/Package foo
 EOF
 
   # TODO: use "ftree" and assert output here.  It should have no lines so the
