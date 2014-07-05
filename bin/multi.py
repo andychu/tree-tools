@@ -306,9 +306,7 @@ def Options():
 
 def main(argv):
   """Returns an exit code."""
-
-  o = Options()
-  (opts, argv) = o.parse_args(argv)
+  (opts, argv) = Options().parse_args(argv)
 
   try:
     action = argv[1]
@@ -354,10 +352,11 @@ def main(argv):
   pairs = RemoveDupes(pairs)
 
   # TODO:
-  # - switch to docopt
   # - the default should be a more efficient internal version
   #   - but you will need to expose the full power of cp, ln, mv
   #   - for --overwrite, --no-dereference, etc.
+  # - should there be an --external or --exec flag?  Not sure we really need
+  #   it.  What options would we use?
   extra_argv = argv[4:]
 
   if action == 'tar':
