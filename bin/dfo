@@ -8,5 +8,5 @@ repo_root=$this_dir/..
 deps=$repo_root/_tmp/deps
 
 # TODO: Use _tmps for tnet library.
-PYTHONPATH=$repo_root:$deps/docopt-master:~/hg/tnet/python \
+PYTHONPATH=$repo_root:~/hg/tnet/python \
   exec $this_dir/dfo.py "$@"
