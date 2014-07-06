@@ -183,6 +183,23 @@ def MultiLn(pairs, dest_base, force=True, relative=False):
   return 0  # exit code
 
 
+def MultiTouch(files, dest_base, force=True):
+  maker = DirMaker()
+  for filename in files:
+    path = JoinPath(dest_base, filename)
+    log('%s', path)
+    maker.mkdir(os.path.dirname(path))
+    try:
+      with open(path, 'w') as f:
+        pass
+    except IOError, e:
+      # TODO: would be nice to print a nicer error
+      log('FATAL: %s', e)
+      return 1
+
+  return 0  # exit code
+
+
 # We have to use normpath because find output gives us stuff like:
 #   ./deep/dir
 # And we don't want:
