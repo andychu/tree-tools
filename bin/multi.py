@@ -324,6 +324,37 @@ class DirMaker(object):
       else:
         raise  # permission errors, etc.
 
+
+def ContentLines(stdin):
+  pairs = []
+  for line in stdin:
+    # allow comments and blank lines in specs.
+    line = line.strip()
+    if not line:
+      continue
+    if line.startswith('#'):
+      continue
+    yield line
+
+
+def MakePairs(stdin):
+  pairs = []
+  for line in ContentLines(stdin):
+    parts = line.split(None, 1)
+    if len(parts) == 1:
+      src = parts[0]
+      dest = parts[0]
+    elif len(parts) == 2:
+      src = parts[0]
+      dest = parts[1]
+    else:
+      raise AssertionError
+    src = src.strip()
+    dest = dest.strip()
+
+    yield src, dest
+
+
 USAGE = """\
 multi [options] cp DEST
        multi [options] mv DEST
@@ -371,7 +402,7 @@ def main(argv):
     raise Error('Action required')
 
   # Check before we read from stdin.
-  if action not in ('tar', 'cp', 'mv', 'ln'):
+  if action not in ('tar', 'cp', 'mv', 'ln', 'touch'):
     raise Error('Invalid action %r' % action)
 
   try:
@@ -383,30 +414,12 @@ def main(argv):
   if opts.relative and action != 'ln':
     raise Error("-r / --relative can't be used with %r" % action)
 
-  pairs = []
-  for line in sys.stdin:
-    # allow comments and blank lines in specs.
-    line = line.strip()
-    if not line:
-      continue
-    if line.startswith('#'):
-      continue
-
-    parts = line.split(None, 1)
-    if len(parts) == 1:
-      src = parts[0]
-      dest = parts[0]
-    elif len(parts) == 2:
-      src = parts[0]
-      dest = parts[1]
-    else:
-      raise AssertionError
-    src = src.strip()
-    dest = dest.strip()
-
-    pairs.append((src, dest))
-
-  pairs = RemoveDupes(pairs)
+  if action == 'touch':
+    files = list(ContentLines(sys.stdin))
+    return MultiTouch(files, dest_base, force=True)
+  else:
+    pairs = list(MakePairs(sys.stdin))
+    pairs = RemoveDupes(pairs)
 
   # TODO:
   # - the default should be a more efficient internal version
@@ -418,16 +431,20 @@ def main(argv):
 
   if action == 'tar':
     return MultiTar(pairs, dest_base)
+
   elif action == 'mv':
     return MultiMv(pairs, dest_base)
+
   elif action == 'ln':
     return MultiLn(pairs, dest_base, force=True, relative=opts.relative)
+
   elif action == 'cp':
     # TODO: parse --force.  cp has it true by default, and has --no-clobber to
     # turn it off.  Hm.  I think maybe mine should be false.
     # Have to test 2 cases: symlinks and files.
     copy = CopyHandler(dest_base, force=True)
     return Dispatch(pairs, copy)
+
   else:
     raise AssertionError('Invalid action %r' % action)
 
