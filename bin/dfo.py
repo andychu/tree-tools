@@ -98,11 +98,11 @@ from __future__ import with_statement
 
 import errno
 import hashlib
+import optparse
 import os
 import stat
 import sys
 
-import docopt
 import tnet
 
 
@@ -419,24 +419,64 @@ def _UnpackTree(in_file, dir):
   print root_checksum
 
 
+USAGE = """\
+val [options] pack SRC_DIR
+       val [options] unpack DEST_DIR
+       val [options] list 
+       val [options] verify \
+"""
+
+def Options():
+  """Returns an option parser instance."""
+  # TODO: where to get version number from?
+  p = optparse.OptionParser(USAGE, version='0.1')
+  p.add_option(
+      '-v', '--verbose', dest='verbose', action='store_true', default=False,
+      help='Show verbose log messages')
+
+  # TODO: any pack and unpack-specific options?
+
+  #g = optparse.OptionGroup(p, "Flags specific to 'pack'", '')
+  #g.add_option(
+  #    '-r', '--relative', dest='relative', action='store_true', default=False,
+  #    help='Make symlinks with relative paths where possible (../.. '
+  #         'target syntax)')
+
+  #p.add_option_group(g)
+  return p
+
+
 def main(argv):
   """Returns an exit code."""
 
-  opts = docopt.docopt(__doc__, version='dfo 0.1')
+  (opts, argv) = Options().parse_args(argv)
+
+  try:
+    action = argv[1]
+  except IndexError:
+    raise RuntimeError('Action required')
 
   # I guess you could run this on plain file:
   # dfo read foo.  And then it could output that?
 
-  if opts['pack']:
-    d = opts['<dir>'] or ['.']
-    outf = sys.stdout
-    PackTree(d, outf)
+  if action == 'pack':
+    try:
+      src_dir = argv[2]
+    except IndexError:
+      raise RuntimeError('pack: source dir required')
 
-  elif opts['unpack']:
-    _UnpackTree(sys.stdin, opts['<dir>'])
+    PackTree(src_dir, sys.stdout)
+
+  elif action == 'unpack':
+    try:
+      dest_dir = argv[2]
+    except IndexError:
+      raise RuntimeError('unpack: destination dir required')
+
+    _UnpackTree(sys.stdin, dest_dir)
 
   else:
-    raise AssertionError('Invalid action')
+    raise RuntimeError('Invalid action %r' % action)
 
   return 0
 
@@ -445,10 +485,10 @@ if __name__ == '__main__':
   try:
     sys.exit(main(sys.argv))
   except RuntimeError, e:
-    print >>sys.stderr, 'dfo: fatal: %s' % e.args[0]
+    log('dfo: %s', e.args[0])
     sys.exit(1)
   except KeyboardInterrupt, e:
-    print >>sys.stderr, '(dfo) Interrupted.'
+    log('dfo: Interrupted.')
     sys.exit(1)
 
 
