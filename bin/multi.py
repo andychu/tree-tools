@@ -193,8 +193,8 @@ def MultiTouch(files, dest_base, force=True):
       with open(path, 'w') as f:
         pass
     except IOError, e:
-      # TODO: would be nice to print a nicer error
-      log('FATAL: %s', e)
+      # e.g. if the file is already a directory
+      log('fatal: %s', e)
       return 1
 
   return 0  # exit code
