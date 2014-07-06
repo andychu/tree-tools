@@ -170,4 +170,19 @@ EOF
   tree $TEST_DIR
 }
 
+test-touch() {
+  multi touch _tmp/touch1 <<EOF
+foo
+bar/baz
+EOF
+  find _tmp/touch1
+
+  # NOTE: This doesn't work, because foo is a file
+  multi touch _tmp/touch2 <<EOF
+foo1
+foo1/bar
+EOF
+  find _tmp/touch2
+}
+
 taste-main "$@"
