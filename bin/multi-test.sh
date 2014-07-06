@@ -175,6 +175,7 @@ test-touch() {
 foo
 bar/baz
 EOF
+  expect $? -eq 0
   find _tmp/touch1
 
   # NOTE: This doesn't work, because foo is a file
@@ -182,6 +183,7 @@ EOF
 foo1
 foo1/bar
 EOF
+  expect $? -eq 1
   find _tmp/touch2
 }
 
