@@ -1,0 +1,41 @@
+Tin
+===
+
+* link:tin.html[Tin]
+* link:command-help[Command Help]
+* link:/keg/tin/[Downloads]
+
+multi
+-----
+
+Data-driven tool for batch copying, moving, and symlinking of files .
+
+py-deps
+-------
+
+Use the Python interpreter to crawl dependencies.  
+
+Set PYTHONPATH.
+
+
+////
+TODO:
+
+sh-deps
+
+Parse lines like:
+
+source $(resolve $SOURCE_PATH foo/bar/baz.sh)
+
+resolve is a tool that parses the first argument?
+
+source $(resolve foo/bar/path)
+
+source already respects $PATH.  I think that is sort of confusing and
+overloaded.
+
+I guess you could do PATH=$PATH:foo/bar sh-deps
+
+- Should this repo be called something else?  Don't make it tin-centric.
+////
+

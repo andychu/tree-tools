@@ -1,0 +1,9 @@
+App(app_id = 'projects/tin',
+    style = 'PLAIN')
+
+# In theory you could put dynamic content up here.
+
+# The whole thing is a static app.
+StaticSubtree(
+  dir = ''
+  )

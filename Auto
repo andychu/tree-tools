@@ -1,0 +1,57 @@
+#!/bin/bash
+
+# Everything has to succeed
+set -o errexit
+set -o nounset
+set -o pipefail
+
+py-deps() {
+  bin/py_deps.py "$@"
+}
+
+multi() {
+  bin/multi.py "$@"
+}
+
+package-manifest() {
+  # Standalone scripts.
+  cat <<EOF
+bin/py_deps.py bin/py-deps
+bin/hg-info.sh bin/hg-info
+EOF
+
+  # Crawl deps.  TODO: docopt.
+  PYTHONPATH=.:_tmp/deps/docopt-master py-deps bin.multi
+  basisc echo-python-stub multi
+  PYTHONPATH=.:_tmp/deps/docopt-master py-deps bin.ftree
+  basisc echo-python-stub ftree
+
+  # Package.stamp
+  basisc echo-package-and-stamp tree-tools $CDI_HG_REVISION
+}
+
+Build() {
+  # Everything here goes to stderr, so we don't have to redirect.
+  package-manifest | multi tar $CDI_OUT/tree-tools.tar.gz
+
+  # TODO: run CDI in sandbox, then put asciidoc/markdown in a sandbox, then
+  # re-enable this.
+  #poly build doc/
+}
+
+# not called 'test' 
+Test() {
+  # TODO: need a tool that runs all the functions that start with test-* in a
+  # shell script?  Or maybe just ./all?
+  ./tin-test.sh smoke-test
+  ./run.sh all-unit-tests
+}
+
+Deploy() {
+  local version=$CDI_HG_REVISION
+  local name=tree-tools.$version.tar.gz
+  scp $CDI_OUT/tree-tools.tar.gz $CDI_DEPLOY_DEST/tree-tools/$name
+  basisc metadata-line $name >> $CDI_DEPLOY_DEST/tree-tools/Index.txt
+}
+
+"$@"

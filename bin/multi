@@ -1,0 +1,5 @@
+#!/bin/sh
+
+this_dir=$(dirname $(readlink -f $0))
+PYTHONPATH=~/git/docopt $this_dir/multi.py "$@"
+  
