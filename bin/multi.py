@@ -102,6 +102,9 @@ def MultiMv(pairs, dest_base):
   """Move sets of any kind of file (including directories and devices.)"""
   maker = DirMaker()
 
+  num_errors = 0
+  num_ok = 0
+
   input_files = []
   i = 0
   for source, rel_dest in pairs:
@@ -113,12 +116,22 @@ def MultiMv(pairs, dest_base):
     try:
       os.rename(source, dest)
     except OSError, e:
-      raise Error('Error moving %s -> %s: %s' % (source, dest, e))
+      # NOTE: This matches the behavior of GNU 'mv'.  If the file doesn't
+      # exist, it prints an error and moves on, but exits with failure.
+      if e.errno == errno.ENOENT:
+        log('Error moving %s -> %s: %s', source, dest, e)
+        num_errors += 1
+      else:
+        raise Error('Error moving %s -> %s: %s' % (source, dest, e))
+    else:
+      num_ok += 1
 
-    i += 1
-
-  log('moved %d items', i)
-  return 0  # exit code
+  if num_errors:
+    log('moved %d items; %d errors', num_ok, num_errors)
+    return 1  # failure
+  else:
+    log('moved %d items', num_ok)
+    return 0
 
 
 def RelativePath(left, right):
