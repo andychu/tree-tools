@@ -4,6 +4,9 @@
 A difference vs. doing find | xargs [cp/mv] is that we make the parent
 directories.
 
+'multi' also makes it easier to manipulate files, while preserving relative
+paths.  It works well with "find -printf '%P\n'"
+
 Examples:
 
   echo foo bar | multi cp
@@ -40,6 +43,8 @@ derefrencing it and copying contents.
 #
 # Force people to pass empty source or not?
 # multi cp '' /some/dest
+# NOTE(11/2014): I ran into this with the 'post-debootstrap.sh prune' script.
+# Worked around by doing pushd / popd.
 #
 # - multi touch <dest>
 #   - for app bundle definition, e.g. special/tmp, special/dev/null
@@ -94,7 +99,7 @@ def MultiTar(pairs, dest):
 
 
 def MultiMv(pairs, dest_base):
-  """Move sets of any kind of file (including devices.)"""
+  """Move sets of any kind of file (including directories and devices.)"""
   maker = DirMaker()
 
   input_files = []
@@ -105,10 +110,14 @@ def MultiMv(pairs, dest_base):
     dest = JoinPath(dest_base, rel_dest)
     maker.mkdir(os.path.dirname(dest))
 
-    os.rename(source, dest)
+    try:
+      os.rename(source, dest)
+    except OSError, e:
+      raise Error('Error moving %s -> %s: %s' % (source, dest, e))
+
     i += 1
 
-  log('moved %d files', i)
+  log('moved %d items', i)
   return 0  # exit code
 
 
