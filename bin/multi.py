@@ -1,4 +1,4 @@
-#!/usr/bin/python -S
+#!/usr/bin/env python2
 """Copy, move, link, or touch files in a batch.
 
 A difference vs. doing find | xargs [cp/mv] is that we make the parent

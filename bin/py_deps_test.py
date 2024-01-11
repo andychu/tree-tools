@@ -1,4 +1,4 @@
-#!/usr/bin/python -S
+#!/usr/bin/env python2
 """
 py_deps_test.py: Tests for py_deps.py
 """
